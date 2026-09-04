@@ -1,0 +1,9 @@
+{
+  "name": "airway-stenosis-tracking",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal tracker for airway stenosis: peak flow, SpO2, symptoms, surgeries, treatments, documents, and care team info.",
+  "scripts": {
+    "dev": "python3 -m http.server 8420"
+  }
+}

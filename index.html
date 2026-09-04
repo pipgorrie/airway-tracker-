@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Airway — Stenosis Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F6F2;
+    --surface:#FFFFFF;
+    --surface-alt:#EAF0EE;
+    --ink:#16262B;
+    --ink-soft:#57696E;
+    --ink-faint:#8B9A9D;
+    --line:#DDE3DF;
+    --primary:#0F6E68;
+    --primary-dark:#0A4F4B;
+    --primary-soft:#DCEBE9;
+    --amber:#C97A3D;
+    --amber-soft:#F3E3D3;
+    --sev0:#4C8C6B;
+    --sev1:#8FA84B;
+    --sev2:#D9A441;
+    --sev3:#D97B3D;
+    --sev4:#C1503A;
+    --radius-s:8px;
+    --radius-m:14px;
+    --radius-l:22px;
+    --shadow: 0 1px 2px rgba(22,38,43,0.06), 0 4px 16px rgba(22,38,43,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:84px;
+    min-height:100vh;
+  }
+  h1,h2,h3,.serif{font-family:'Fraunces', Georgia, serif;}
+  h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  h2{font-size:19px;font-weight:600;margin:0 0 2px;letter-spacing:-0.005em;}
+  h3{font-size:15px;font-weight:500;margin:0;color:var(--ink-soft);}
+  p{margin:0;line-height:1.5;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---- Header ---- */
+  header.top{
+    padding:22px 20px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    position:relative;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand-mark{display:flex;align-items:center;gap:10px;}
+  .breath-wave{width:34px;height:20px;flex-shrink:0;}
+  .brand-sub{font-size:12.5px;color:var(--ink-faint);}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+    background:var(--surface);display:flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);
+  }
+  .icon-btn-labeled{
+    display:flex;align-items:center;gap:6px;height:38px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
+    padding:0 14px;font-size:13px;font-weight:600;
+  }
+
+  main{padding:0 16px;max-width:560px;margin:0 auto;}
+  .view{display:none;animation:fadeIn .25s ease;}
+  .view.active{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---- Cards ---- */
+  .card{
+    background:var(--surface);
+    border-radius:var(--radius-l);
+    padding:18px;
+    margin-bottom:14px;
+    box-shadow:var(--shadow);
+    border:1px solid rgba(22,38,43,0.04);
+  }
+  .card-flat{
+    background:var(--surface-alt);
+    border-radius:var(--radius-m);
+    padding:14px 16px;
+    margin-bottom:12px;
+  }
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .stack{display:flex;flex-direction:column;gap:10px;}
+
+  .banner{
+    border-radius:var(--radius-m);
+    padding:14px 16px;
+    margin-bottom:14px;
+    display:flex;
+    gap:12px;
+    align-items:flex-start;
+  }
+  .banner.recovery{background:var(--amber-soft);border:1px solid #E7CBA9;}
+  .banner.reminder{background:var(--primary-soft);border:1px solid #BFDAD6;}
+  .banner-icon{font-size:18px;line-height:1;margin-top:1px;}
+  .banner-title{font-weight:600;font-size:14.5px;margin-bottom:2px;}
+  .banner-body{font-size:13.5px;color:var(--ink-soft);line-height:1.45;}
+  .banner button.link{
+    background:none;border:none;padding:0;margin-top:8px;color:var(--primary-dark);
+    font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:2px;
+  }
+
+  .stat-big{font-family:'Fraunces',serif;font-size:40px;font-weight:600;letter-spacing:-0.02em;line-height:1;}
+  .stat-unit{font-size:14px;color:var(--ink-faint);font-weight:500;margin-left:4px;}
+  .stat-label{font-size:12.5px;color:var(--ink-faint);margin-top:4px;text-transform:none;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  /* ---- Buttons ---- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border-radius:999px;padding:12px 20px;font-weight:600;font-size:14.5px;
+    border:none;width:100%;
+  }
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-primary:active{background:var(--primary-dark);}
+  .btn-ghost{background:var(--surface-alt);color:var(--ink);}
+  .btn-outline{background:transparent;border:1.5px solid var(--line);color:var(--ink);}
+  .btn-sm{padding:8px 14px;font-size:13px;width:auto;}
+  .btn-row{display:flex;gap:10px;}
+  .btn-row .btn{flex:1;}
+
+  .quick-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+  .quick-actions .btn{padding:16px 8px;flex-direction:column;font-size:12.5px;gap:6px;}
+  .quick-actions .qicon{font-size:20px;}
+
+  /* ---- Form elements ---- */
+  label.field-label{font-size:12.5px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:6px;}
+  input[type=text],input[type=number],input[type=date],input[type=time],textarea,select{
+    width:100%;border:1.5px solid var(--line);border-radius:var(--radius-s);
+    padding:11px 12px;font-size:15px;color:var(--ink);background:var(--surface);
+  }
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary);}
+  textarea{resize:vertical;min-height:60px;}
+  .field{margin-bottom:14px;}
+
+  /* Segmented severity picker 0-4 */
+  .sev-picker{display:flex;gap:6px;}
+  .sev-opt{
+    flex:1;padding:10px 0;text-align:center;border-radius:10px;border:1.5px solid var(--line);
+    font-weight:600;font-size:14px;color:var(--ink-faint);background:var(--surface);
+  }
+  .sev-opt.sel-0.active{background:var(--sev0);border-color:var(--sev0);color:#fff;}
+  .sev-opt.sel-1.active{background:var(--sev1);border-color:var(--sev1);color:#fff;}
+  .sev-opt.sel-2.active{background:var(--sev2);border-color:var(--sev2);color:#fff;}
+  .sev-opt.sel-3.active{background:var(--sev3);border-color:var(--sev3);color:#fff;}
+  .sev-opt.sel-4.active{background:var(--sev4);border-color:var(--sev4);color:#fff;}
+  .sev-caption{font-size:12px;color:var(--ink-faint);margin-top:6px;min-height:15px;}
+
+  .symptom-block{margin-bottom:18px;}
+  .symptom-block:last-child{margin-bottom:4px;}
+  .symptom-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .symptom-head .sname{font-weight:600;font-size:14.5px;}
+
+  /* ---- Tab bar ---- */
+  nav.tabbar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    display:flex;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index:50;
+  }
+  .tab-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;padding:6px 2px;color:var(--ink-faint);font-size:11px;font-weight:600;
+    border-radius:12px;
+  }
+  .tab-btn .ticon{font-size:19px;}
+  .tab-btn.active{color:var(--primary-dark);}
+
+  /* ---- Chart ---- */
+  .chart-wrap{width:100%;overflow-x:auto;}
+  svg.chart{display:block;}
+  .chart-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--ink-soft);}
+  .legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;}
+
+  .empty{
+    text-align:center;padding:30px 10px;color:var(--ink-faint);font-size:13.5px;
+  }
+  .empty .eicon{font-size:26px;display:block;margin-bottom:8px;}
+
+  .list-item{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+    padding:12px 0;border-bottom:1px solid var(--line);
+  }
+  .list-item:last-child{border-bottom:none;}
+  .li-main{flex:1;}
+  .li-date{font-size:12px;color:var(--ink-faint);font-weight:600;}
+  .li-title{font-size:14.5px;font-weight:600;margin-top:1px;}
+  .li-notes{font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
+  .li-del{background:none;border:none;color:var(--ink-faint);font-size:16px;padding:4px 6px;}
+
+  .segmented{display:flex;background:var(--surface-alt);border-radius:999px;padding:3px;margin-bottom:14px;}
+  .segmented button{flex:1;border:none;background:none;padding:8px 0;border-radius:999px;font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .segmented button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(22,38,43,0.4);z-index:100;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  .modal-sheet{
+    background:var(--bg);width:100%;max-width:560px;border-radius:22px 22px 0 0;
+    padding:20px 20px calc(24px + env(safe-area-inset-bottom));
+    max-height:88vh;overflow-y:auto;
+    animation:slideUp .28s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slideUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .modal-close{background:var(--surface-alt);border:none;width:32px;height:32px;border-radius:50%;color:var(--ink-soft);font-size:16px;}
+
+  .toast{
+    position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:13.5px;
+    z-index:200;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;
+    font-weight:500;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  .disclaimer{
+    font-size:12px;color:var(--ink-faint);line-height:1.5;padding:6px 4px 20px;text-align:center;
+  }
+  .kind-tag{
+    display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+    background:var(--primary-soft);color:var(--primary-dark);letter-spacing:0.02em;
+  }
+  .kind-tag.diet{background:var(--amber-soft);color:#8A4E22;}
+  .kind-tag.therapy{background:#E3DCEF;color:#5B3E8A;}
+  .info-toggle{background:none;border:none;color:var(--primary-dark);font-size:12.5px;font-weight:600;padding:0;margin-top:2px;}
+  .info-box{font-size:13px;color:var(--ink-soft);line-height:1.55;background:var(--surface-alt);border-radius:var(--radius-s);padding:12px 13px;margin-top:10px;}
+
+  /* ---- Documents ---- */
+  .doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .doc-card{background:var(--surface);border-radius:var(--radius-m);overflow:hidden;border:1px solid var(--line);cursor:pointer;text-align:left;padding:0;}
+  .doc-thumb{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--surface-alt);display:block;}
+  .doc-meta{padding:9px 10px 11px;}
+  .doc-title{font-size:12.5px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+  .doc-date{font-size:11px;color:var(--ink-faint);}
+  .upload-drop{
+    border:1.5px dashed var(--line);border-radius:var(--radius-m);padding:22px 14px;text-align:center;
+    color:var(--ink-soft);font-size:13.5px;margin-bottom:14px;position:relative;background:var(--surface-alt);
+  }
+  .upload-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .upload-preview{width:100%;max-height:260px;object-fit:contain;border-radius:var(--radius-s);margin-bottom:12px;display:block;background:var(--surface-alt);}
+  .doc-viewer-img{width:100%;border-radius:var(--radius-s);margin-bottom:14px;display:block;}
+  .spinner{width:22px;height:22px;border:2.5px solid var(--primary-soft);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:20px auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="icon-btn" id="backBtn" onclick="switchTab('today')" aria-label="Back to Today" style="display:none;">←</button>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg class="breath-wave" viewBox="0 0 34 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path id="wavePath" d="M1 10 Q 5 2, 9 10 T 17 10 T 25 10 T 33 10" stroke="#0F6E68" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h1>Airway</h1>
+      </div>
+      <div class="brand-sub">Your stenosis tracker</div>
+    </div>
+  </div>
+  <button class="icon-btn-labeled" onclick="openSettings()" aria-label="Settings">⚙ Settings</button>
+</header>
+
+<main>
+
+  <!-- TODAY -->
+  <section class="view active" id="view-today">
+    <div id="todayBanners"></div>
+
+    <div class="quick-actions">
+      <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log peak flow</button>
+      <button class="btn btn-ghost" onclick="openOxygenModal()"><span class="qicon">🩸</span>Log SpO₂</button>
+      <button class="btn btn-ghost" onclick="openSymptomModal()"><span class="qicon">📝</span>Log symptoms</button>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>Peak flow</h2>
+        <button class="btn btn-sm btn-outline" onclick="switchTab('peakflow')">View trend</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="stat-big" id="todayLatestPF">—</div>
+          <div class="stat-label">Latest reading</div>
+        </div>
+        <div>
+          <div class="stat-big" id="todayMaxPF" style="color:var(--primary-dark);">—</div>
+          <div class="stat-label">Personal best</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>SpO₂</h2>
+        <button class="btn btn-sm btn-outline" onclick="switchTab('oxygen')">View trend</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="stat-big" id="todayLatestO2">—</div>
+          <div class="stat-label">Latest reading</div>
+        </div>
+        <div>
+          <div class="stat-big" id="todayLowO2" style="color:var(--amber);">—</div>
+          <div class="stat-label">Lowest recorded</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>Symptoms</h2>
+        <button class="btn btn-sm btn-outline" onclick="switchTab('symptoms')">View trend</button>
+      </div>
+      <div id="todaySymptomSummary" class="stack"></div>
+    </div>
+
+    <div class="card" id="upcomingCard" style="display:none;">
+      <h2 style="margin-bottom:10px;">Recent activity</h2>
+      <div id="recentActivityList"></div>
+    </div>
+  </section>
+
+  <!-- PEAK FLOW -->
+  <section class="view" id="view-peakflow">
+    <div class="card">
+      <div class="grid2" style="margin-bottom:14px;">
+        <div>
+          <div class="stat-big" id="pfMax">—<span class="stat-unit">L/min</span></div>
+          <div class="stat-label">Personal max</div>
+        </div>
+        <div>
+          <div class="stat-big" id="pfLatest">—<span class="stat-unit">L/min</span></div>
+          <div class="stat-label">Latest reading</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><svg class="chart" id="pfChart" viewBox="0 0 340 160"></svg></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--primary);"></span>Peak flow</span>
+        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+      </div>
+    </div>
+
+    <div class="card" id="pfPercentCard">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>% of max</h2>
+      </div>
+      <div id="pfPercentBody"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:2px;">
+        <h2>Weekly reminder</h2>
+        <label class="switch">
+          <input type="checkbox" id="reminderToggle" onchange="toggleReminder()" style="width:auto;accent-color:var(--primary);transform:scale(1.3);">
+        </label>
+      </div>
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:6px;">
+        A steady weekly reading is more useful than daily noise. We suggest <strong>Sunday nights around 8:00pm</strong> — after the day has settled, before the week starts.
+      </p>
+      <div id="reminderControls" style="margin-top:12px;display:none;">
+        <div class="grid2">
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Day</label>
+            <select id="reminderDay" onchange="saveReminderSettings()">
+              <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+              <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Time</label>
+            <input type="time" id="reminderTime" value="20:00" onchange="saveReminderSettings()">
+          </div>
+        </div>
+        <button class="btn btn-outline" style="margin-top:12px;" onclick="downloadReminderICS()">Add to calendar (.ics)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:6px;">History</h2>
+      <div id="pfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first peak flow above.</div></div>
+    </div>
+  </section>
+
+  <!-- OXYGEN -->
+  <section class="view" id="view-oxygen">
+    <div class="card">
+      <div class="grid2" style="margin-bottom:14px;">
+        <div>
+          <div class="stat-big" id="oxLatest">—<span class="stat-unit">%</span></div>
+          <div class="stat-label">Latest reading</div>
+        </div>
+        <div>
+          <div class="stat-big" id="oxLow" style="color:var(--amber);">—<span class="stat-unit">%</span></div>
+          <div class="stat-label">Lowest recorded</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><svg class="chart" id="oxChart" viewBox="0 0 340 160"></svg></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#5C8A9E;"></span>SpO₂ %</span>
+        <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 92%</span>
+        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
+        Readings below 92% are flagged for your awareness only — this isn't a diagnosis. If a reading concerns you, especially with worsening breathlessness, contact your care team or seek urgent care.
+      </p>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:6px;">History</h2>
+      <div id="oxList"><div class="empty"><span class="eicon">🩸</span>No readings yet — log your first SpO₂ reading above.</div></div>
+    </div>
+  </section>
+
+  <!-- SYMPTOMS -->
+  <section class="view" id="view-symptoms">
+    <div class="card">
+      <div id="symChartWrap" class="chart-wrap"><svg class="chart" id="symChart" viewBox="0 0 340 160"></svg></div>
+      <div id="symTableWrap" style="display:none;overflow-x:auto;"></div>
+      <div class="chart-legend" id="symLegend"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h2>About these scales</h2>
+      </div>
+      <button class="info-toggle" onclick="toggleInfo()">What do the scores mean? ▾</button>
+      <div class="info-box" id="scaleInfo" style="display:none;">
+        Each symptom is scored 0 (none) to 4 (severe), similar in spirit to respiratory symptom diaries used in clinical research. Rate how the symptom has been over the last 24 hours, not just right now. Consistency matters more than precision, so try to log at a similar time of day.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:6px;">History</h2>
+      <div id="symList"><div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div></div>
+    </div>
+  </section>
+
+  <!-- MEDICAL -->
+  <section class="view" id="view-surgery">
+    <div class="segmented">
+      <button class="active" data-seg="surgeries" onclick="setSurgerySeg('surgeries')">Surgeries</button>
+      <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
+      <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
+      <button data-seg="documents" onclick="setSurgerySeg('documents')">Docs</button>
+      <button data-seg="careteam" onclick="setSurgerySeg('careteam')">Care team</button>
+    </div>
+
+    <div id="seg-surgeries">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openSurgeryModal()">+ Log a surgery</button>
+      <div class="card">
+        <div id="surgeryList"><div class="empty"><span class="eicon">🏥</span>No surgeries logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-treatments" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openTreatmentModal()">+ Log a medication, diet, or therapy</button>
+      <div class="card">
+        <div id="treatmentList"><div class="empty"><span class="eicon">💊</span>Nothing logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-allergies" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openAllergyModal()">+ Log an allergy</button>
+      <div class="card">
+        <div id="allergyList"><div class="empty"><span class="eicon">⚠️</span>No allergies logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-documents" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openDocumentModal()">+ Add a photo or document</button>
+      <p style="font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;">Photograph paperwork, screenshot an email, or upload a PDF — discharge summaries, prescriptions, referral letters, correspondence with your care team.</p>
+      <div id="documentGrid"><div class="empty"><span class="eicon">📎</span>Nothing uploaded yet.</div></div>
+    </div>
+
+    <div id="seg-careteam" style="display:none;">
+      <p style="font-size:12.5px;color:var(--ink-faint);margin:0 0 14px;">Kept on this device only — handy to have ready before an appointment or an ER visit.</p>
+      <div id="careTeamCards"></div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="ticon">🏠</span>Today</button>
+  <button class="tab-btn" data-tab="peakflow" onclick="switchTab('peakflow')"><span class="ticon">📈</span>Peak flow</button>
+  <button class="tab-btn" data-tab="oxygen" onclick="switchTab('oxygen')"><span class="ticon">🩸</span>SpO₂</button>
+  <button class="tab-btn" data-tab="symptoms" onclick="switchTab('symptoms')"><span class="ticon">📝</span>Symptoms</button>
+  <button class="tab-btn" data-tab="surgery" onclick="switchTab('surgery')"><span class="ticon">🏥</span>Medical</button>
+</nav>
+
+<div id="toast" class="toast"></div>
+<div id="modalRoot"></div>
+
+<script src="storage.js"></script>
+<script>
+/* ============ STATE ============ */
+const STORE_KEY = 'stenosis-tracker-state-v1';
+function defaultSettings(){
+  return {
+    reminderEnabled:false, reminderDay:0, reminderTime:'20:00', unit:'L/min',
+    maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
+    fixedSymptomLabels: {
+      cough:'Coughing',
+      mucus:'Mucus / needing to clear throat',
+      stridor:'Stridor (noisy / high-pitched breathing)',
+      voice:'Voice change / hoarseness'
+    },
+    customSymptoms: [
+      {id:'custom1', label:'Difficulty making the bed'},
+      {id:'custom2', label:'Difficulty walking up stairs'},
+      {id:'custom3', label:'Difficulty getting dressed'}
+    ]
+  };
+}
+function defaultCareInfo(){
+  return {
+    healthNumber: '', healthSystem: '', // e.g. "NHI number" + "NHI (New Zealand)", "NHS number" + "NHS (UK)", or "Medicare number" + "Medicare (Australia)"
+    insuranceProvider: '', insurancePolicy: '', insuranceClaim: '', insurancePhone: '',
+    gp: { name:'', clinic:'', phone:'', email:'', address:'' },
+    surgeon: { name:'', clinic:'', phone:'', email:'', address:'' },
+    nextOfKin: { name:'', relationship:'', phone:'', email:'', address:'' }
+  };
+}
+let state = {
+  peakFlow: [],      // {id, date (ISO), value (number), note, oxygen (optional number, legacy from before oxygen had its own tab)}
+  oxygen: [],          // {id, date (ISO), value (number, %), note}
+  symptoms: [],       // {id, date, cough, mucus, stridor, custom:[{id,label,value}]}
+  surgeries: [],       // {id, date, type, notes}
+  treatments: [],       // {id, name, kind ('medication'|'diet'), start, end, notes}
+  allergies: [],        // {id, allergen, reaction, severity, notes}
+  documents: [],        // {id, date, title, kind ('paper'|'email'|'other'), note, linkedSurgeryId, thumb (small dataURL)} — full-size image stored separately per doc
+  careInfo: defaultCareInfo(), // health/insurance IDs, GP, surgeon, next of kin — device-local only
+  settings: defaultSettings()
+};
+let stateLoaded = false;
+
+async function loadState(){
+  try{
+    const res = await window.storage.get('state');
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = Object.assign(state, parsed);
+      // merge settings so new fields (like customSymptoms, fixedSymptomLabels) survive loading older saved data
+      const defaults = defaultSettings();
+      state.settings = Object.assign(defaults, parsed.settings||{});
+      state.settings.fixedSymptomLabels = Object.assign(defaults.fixedSymptomLabels, (parsed.settings&&parsed.settings.fixedSymptomLabels)||{});
+      const careDefaults = defaultCareInfo();
+      const parsedCare = parsed.careInfo||{};
+      state.careInfo = Object.assign(careDefaults, parsedCare);
+      state.careInfo.gp = Object.assign(careDefaults.gp, parsedCare.gp||{});
+      state.careInfo.surgeon = Object.assign(careDefaults.surgeon, parsedCare.surgeon||{});
+      state.careInfo.nextOfKin = Object.assign(careDefaults.nextOfKin, parsedCare.nextOfKin||{});
+    }
+  }catch(e){ /* no data yet */ }
+  stateLoaded = true;
+  renderAll();
+}
+async function saveState(){
+  try{
+    await window.storage.set('state', JSON.stringify(state));
+  }catch(e){ console.error('save failed', e); }
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function todayISO(){ return new Date().toISOString(); }
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ============ TABS ============ */
+function switchTab(tab){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('backBtn').style.display = tab==='today' ? 'none' : 'flex';
+  window.scrollTo({top:0,behavior:'instant'});
+}
+function setSurgerySeg(seg){
+  document.querySelectorAll('#view-surgery .segmented button').forEach(b=>b.classList.toggle('active', b.dataset.seg===seg));
+  document.getElementById('seg-surgeries').style.display = seg==='surgeries' ? 'block':'none';
+  document.getElementById('seg-treatments').style.display = seg==='treatments' ? 'block':'none';
+  document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
+  document.getElementById('seg-documents').style.display = seg==='documents' ? 'block':'none';
+  document.getElementById('seg-careteam').style.display = seg==='careteam' ? 'block':'none';
+}
+function toggleInfo(){
+  const box = document.getElementById('scaleInfo');
+  box.style.display = box.style.display==='none' ? 'block':'none';
+}
+
+/* ============ MODALS ============ */
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function renderModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal-sheet">${html}</div></div>`; }
+
+/* ---- Peak flow modal ---- */
+function openPeakFlowModal(){
+  const now = new Date();
+  const dateVal = now.toISOString().slice(0,10);
+  const timeVal = now.toTimeString().slice(0,5);
+  renderModal(`
+    <div class="modal-head"><h2>Log peak flow</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field">
+      <label class="field-label">Reading (L/min)</label>
+      <input type="number" inputmode="numeric" id="pfValue" placeholder="e.g. 320" autofocus>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Date</label><input type="date" id="pfDate" value="${dateVal}"></div>
+      <div class="field"><label class="field-label">Time</label><input type="time" id="pfTime" value="${timeVal}"></div>
+    </div>
+    <div class="field"><label class="field-label">Note (optional)</label><textarea id="pfNote" placeholder="e.g. felt breathless before, best of 3 blows"></textarea></div>
+    <button class="btn btn-primary" onclick="savePeakFlow()">Save reading</button>
+  `);
+}
+function savePeakFlow(){
+  const value = parseFloat(document.getElementById('pfValue').value);
+  if(!value || value<=0){ toast('Enter a valid reading'); return; }
+  const date = document.getElementById('pfDate').value;
+  const time = document.getElementById('pfTime').value || '00:00';
+  const note = document.getElementById('pfNote').value.trim();
+  const iso = new Date(date+'T'+time).toISOString();
+  state.peakFlow.push({id:uid(), date:iso, value, note});
+  state.peakFlow.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveState(); closeModal(); renderAll(); toast('Peak flow saved');
+}
+function deletePeakFlow(id){
+  state.peakFlow = state.peakFlow.filter(r=>r.id!==id);
+  saveState(); renderAll();
+}
+
+/* ---- Oxygen modal ---- */
+function openOxygenModal(){
+  const now = new Date();
+  const dateVal = now.toISOString().slice(0,10);
+  const timeVal = now.toTimeString().slice(0,5);
+  renderModal(`
+    <div class="modal-head"><h2>Log oxygen saturation</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field">
+      <label class="field-label">Oxygen saturation (SpO₂) %</label>
+      <input type="number" inputmode="numeric" id="oxValue" placeholder="e.g. 97" min="0" max="100" autofocus>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Date</label><input type="date" id="oxDate" value="${dateVal}"></div>
+      <div class="field"><label class="field-label">Time</label><input type="time" id="oxTime" value="${timeVal}"></div>
+    </div>
+    <div class="field"><label class="field-label">Note (optional)</label><textarea id="oxNote" placeholder="e.g. resting, after climbing stairs"></textarea></div>
+    <button class="btn btn-primary" onclick="saveOxygen()">Save reading</button>
+  `);
+}
+function saveOxygen(){
+  const value = parseFloat(document.getElementById('oxValue').value);
+  if(isNaN(value) || value<0 || value>100){ toast('Enter a reading between 0 and 100%'); return; }
+  const date = document.getElementById('oxDate').value;
+  const time = document.getElementById('oxTime').value || '00:00';
+  const note = document.getElementById('oxNote').value.trim();
+  const iso = new Date(date+'T'+time).toISOString();
+  state.oxygen.push({id:uid(), date:iso, value, note});
+  state.oxygen.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveState(); closeModal(); renderAll(); toast('Oxygen saturation saved');
+}
+function deleteOxygen(id){
+  state.oxygen = state.oxygen.filter(r=>r.id!==id);
+  saveState(); renderAll();
+}
+// merges the dedicated oxygen log with any legacy readings that were saved alongside older peak flow entries
+function getCombinedOxygenReadings(){
+  const legacy = state.peakFlow.filter(r=>typeof r.oxygen==='number').map(r=>({id:r.id, date:r.date, value:r.oxygen, note:r.note, legacy:true}));
+  return [...state.oxygen, ...legacy].sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+
+/* ---- Symptom modal ---- */
+// Fixed core symptoms (stable over time, safe to chart)
+const SEV_CAPTIONS = {
+  cough:['No cough','Brief, a couple of short spells','Several spells through the day','Frequent — interferes with activities','Near-constant, distressing'],
+  mucus:['None / nothing to clear','A little, clear throat occasionally','Regular need to clear or cough up','Frequent, thick — clearing disrupts activities','Constant, heavy — hard to keep airway clear'],
+  stridor:['No noisy breathing','Faint, only with heavy exertion','Noticeable with moderate activity','Audible with light activity or sometimes at rest','Constant, loud — obvious effort to breathe at rest'],
+  voice:['Normal voice','Slightly rough or tires by day\'s end','Noticeably hoarse or strained, others may notice','Voice tires quickly, effortful to talk for long','Very hoarse, weak, or hard to be heard most of the time']
+};
+const FIXED_SYMPTOMS = ['cough','mucus','stridor','voice'];
+const MIN_CUSTOM = 0, MAX_CUSTOM = 5;
+
+let symptomDraft = {};
+function openSymptomModal(){
+  symptomDraft = {cough:null, mucus:null, stridor:null, voice:null, custom:{}};
+  state.settings.customSymptoms.forEach(c=>{ symptomDraft.custom[c.id]=null; });
+  const now = new Date();
+  renderModal(`
+    <div class="modal-head"><h2>Log symptoms</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">Rate each over the last 24 hours. 0 = none, 4 = severe. Tap any name to rename it.</p>
+    ${FIXED_SYMPTOMS.map(key=>sevBlock(key, state.settings.fixedSymptomLabels[key], {editable:true, removable:false, renameFn:'renameFixedSymptom'})).join('')}
+    <div style="border-top:1px solid var(--line);margin:16px 0 14px;"></div>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:14px;">Your own activities.</p>
+    <div id="customSymptomBlocks">${renderCustomBlocks()}</div>
+    <div class="row" style="margin-bottom:16px;" id="addCustomRow">${renderAddCustomButton()}</div>
+    <div class="field"><label class="field-label">Date</label><input type="date" id="symDate" value="${now.toISOString().slice(0,10)}"></div>
+    <button class="btn btn-primary" onclick="saveSymptom()">Save symptoms</button>
+  `);
+}
+function renderCustomBlocks(){
+  return state.settings.customSymptoms.map(c=>sevBlock(c.id, c.label, {editable:true, removable: state.settings.customSymptoms.length>MIN_CUSTOM, renameFn:'renameCustomSymptom'})).join('');
+}
+function refreshCustomBlocks(){
+  document.getElementById('customSymptomBlocks').innerHTML = renderCustomBlocks();
+  document.getElementById('addCustomRow').innerHTML = renderAddCustomButton();
+}
+function renderAddCustomButton(){
+  const atMax = state.settings.customSymptoms.length>=MAX_CUSTOM;
+  return `<button type="button" class="btn btn-sm btn-outline" onclick="addCustomSymptomField()" ${atMax?'disabled style="opacity:.4;"':''}>+ Add another (${state.settings.customSymptoms.length}/${MAX_CUSTOM})</button>`;
+}
+function sevBlock(key,label,opts={}){
+  const {editable=false, removable=false, renameFn=''} = opts;
+  let optsHtml='';
+  for(let i=0;i<=4;i++){ optsHtml += `<button type="button" class="sev-opt sel-${i}" data-key="${key}" data-val="${i}" onclick="pickSev('${key}',${i})">${i}</button>`; }
+  const headHtml = editable
+    ? `<div class="symptom-head">
+         <input type="text" class="custom-label-input" value="${escapeHtml(label)}" onchange="${renameFn}('${key}', this.value)" style="border:none;background:none;padding:0;font-weight:600;font-size:14.5px;font-family:inherit;color:var(--ink);flex:1;">
+         ${removable ? `<button type="button" class="li-del" onclick="removeCustomSymptomField('${key}')" aria-label="Remove">✕</button>` : ''}
+       </div>`
+    : `<div class="symptom-head"><span class="sname">${label}</span></div>`;
+  return `<div class="symptom-block">
+    ${headHtml}
+    <div class="sev-picker" id="sevpicker-${key}">${optsHtml}</div>
+    <div class="sev-caption" id="sevcap-${key}"></div>
+  </div>`;
+}
+function pickSev(key,val){
+  const isCustom = !SEV_CAPTIONS[key];
+  if(isCustom){ symptomDraft.custom[key]=val; } else { symptomDraft[key]=val; }
+  document.querySelectorAll(`#sevpicker-${key} .sev-opt`).forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.val)===val);
+  });
+  document.getElementById(`sevcap-${key}`).textContent = isCustom
+    ? ['No difficulty','Slightly more effort than usual','Needs a short rest partway through','Needs to stop and recover repeatedly','Cannot do it / needs help'][val]
+    : SEV_CAPTIONS[key][val];
+}
+function renameFixedSymptom(key,newLabel){
+  newLabel = newLabel.trim();
+  if(!newLabel) return;
+  state.settings.fixedSymptomLabels[key] = newLabel;
+  saveState(); renderAll();
+}
+function addCustomSymptomField(){
+  if(state.settings.customSymptoms.length>=MAX_CUSTOM){ toast(`You can track up to ${MAX_CUSTOM} extras`); return; }
+  const id = 'custom'+uid();
+  state.settings.customSymptoms.push({id, label:'New activity'});
+  symptomDraft.custom[id]=null;
+  saveState(); refreshCustomBlocks();
+}
+function removeCustomSymptomField(id){
+  if(state.settings.customSymptoms.length<=MIN_CUSTOM){ toast(`Keep at least ${MIN_CUSTOM} extras`); return; }
+  state.settings.customSymptoms = state.settings.customSymptoms.filter(c=>c.id!==id);
+  delete symptomDraft.custom[id];
+  saveState(); refreshCustomBlocks();
+}
+function renameCustomSymptom(id,newLabel){
+  newLabel = newLabel.trim();
+  if(!newLabel) return;
+  const item = state.settings.customSymptoms.find(c=>c.id===id);
+  if(item){ item.label = newLabel; saveState(); renderAll(); }
+}
+function saveSymptom(){
+  const {cough,mucus,stridor,voice,custom} = symptomDraft;
+  const customVals = Object.values(custom);
+  if([cough,mucus,stridor,voice].some(v=>v===null) || customVals.some(v=>v===null) || customVals.length<MIN_CUSTOM){
+    toast('Please rate every item'); return;
+  }
+  const date = document.getElementById('symDate').value;
+  const iso = new Date(date+'T12:00').toISOString();
+  // snapshot custom labels at time of logging so history stays accurate even if renamed/removed later
+  const customSnapshot = state.settings.customSymptoms.map(c=>({id:c.id, label:c.label, value:custom[c.id]}));
+  state.symptoms.push({id:uid(), date:iso, cough, mucus, stridor, voice, custom:customSnapshot});
+  state.symptoms.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveState(); closeModal(); renderAll(); toast('Symptoms saved');
+}
+function deleteSymptom(id){ state.symptoms = state.symptoms.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- Surgery modal ---- */
+const STENOSIS_LOCATIONS = ['Subglottis','Glottis / vocal folds','Upper trachea','Mid trachea','Lower trachea','Other'];
+function openSurgeryModal(){
+  const now = new Date();
+  renderModal(`
+    <div class="modal-head"><h2>Log a surgery</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field"><label class="field-label">Procedure</label><input type="text" id="sgType" placeholder="e.g. Balloon dilation, endoscopic resection"></div>
+    <div class="field">
+      <label class="field-label">Stenosis location (optional — select all that apply)</label>
+      <div class="stack" style="gap:6px;">
+        ${STENOSIS_LOCATIONS.map((loc,i)=>`
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;">
+            <input type="checkbox" class="sg-location-check" value="${escapeHtml(loc)}" id="sgLoc${i}" style="width:auto;accent-color:var(--primary);transform:scale(1.15);">
+            ${escapeHtml(loc)}
+          </label>`).join('')}
+      </div>
+    </div>
+    <div class="field"><label class="field-label">Date</label><input type="date" id="sgDate" value="${now.toISOString().slice(0,10)}"></div>
+    <div class="field"><label class="field-label">Notes (optional)</label><textarea id="sgNotes" placeholder="Surgeon, hospital, how it went..."></textarea></div>
+    <button class="btn btn-primary" onclick="saveSurgery()">Save surgery</button>
+  `);
+}
+function saveSurgery(){
+  const type = document.getElementById('sgType').value.trim();
+  const location = Array.from(document.querySelectorAll('.sg-location-check:checked')).map(el=>el.value);
+  const date = document.getElementById('sgDate').value;
+  const notes = document.getElementById('sgNotes').value.trim();
+  if(!type){ toast('Add a procedure name'); return; }
+  const iso = new Date(date+'T09:00').toISOString();
+  state.surgeries.push({id:uid(), date:iso, type, location, notes});
+  state.surgeries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveState(); closeModal(); renderAll(); toast('Surgery logged');
+}
+function formatSurgeryLocation(location){
+  if(Array.isArray(location)) return location.join(', ');
+  return location || '';
+}
+function deleteSurgery(id){ state.surgeries = state.surgeries.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- Treatment modal ---- */
+function openTreatmentModal(){
+  const now = new Date();
+  renderModal(`
+    <div class="modal-head"><h2>Log a medication, diet, or intervention</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="segmented" style="margin-bottom:14px;">
+      <button type="button" class="active" id="kindMed" onclick="setTreatKind('medication')">Medication</button>
+      <button type="button" id="kindDiet" onclick="setTreatKind('diet')">Diet</button>
+      <button type="button" id="kindTherapy" onclick="setTreatKind('therapy')">Therapy</button>
+    </div>
+    <input type="hidden" id="trKind" value="medication">
+    <div class="field"><label class="field-label">Name</label><input type="text" id="trName" placeholder="${TREAT_NAME_PLACEHOLDER.medication}"></div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Started</label><input type="date" id="trStart" value="${now.toISOString().slice(0,10)}"></div>
+      <div class="field"><label class="field-label">Ended (optional)</label><input type="date" id="trEnd"></div>
+    </div>
+    <div class="field"><label class="field-label">Notes — dose, how it went (optional)</label><textarea id="trNotes" placeholder="${TREAT_NOTES_PLACEHOLDER.medication}"></textarea></div>
+    <button class="btn btn-primary" onclick="saveTreatment()">Save</button>
+  `);
+}
+const TREAT_NAME_PLACEHOLDER = {
+  medication: 'e.g. Prednisone, Amoxicillin',
+  diet: 'e.g. Low-acid diet, soft foods only',
+  therapy: 'e.g. Voice therapy, breathing exercises'
+};
+const TREAT_NOTES_PLACEHOLDER = {
+  medication: 'Dose, how it went, side effects?',
+  diet: 'What changed, did it help with symptoms?',
+  therapy: 'Frequency, provider, did it help?'
+};
+function setTreatKind(kind){
+  document.getElementById('trKind').value = kind;
+  document.getElementById('kindMed').classList.toggle('active', kind==='medication');
+  document.getElementById('kindDiet').classList.toggle('active', kind==='diet');
+  document.getElementById('kindTherapy').classList.toggle('active', kind==='therapy');
+  document.getElementById('trName').placeholder = TREAT_NAME_PLACEHOLDER[kind];
+  document.getElementById('trNotes').placeholder = TREAT_NOTES_PLACEHOLDER[kind];
+}
+function saveTreatment(){
+  const name = document.getElementById('trName').value.trim();
+  const kind = document.getElementById('trKind').value;
+  const start = document.getElementById('trStart').value;
+  const end = document.getElementById('trEnd').value;
+  const notes = document.getElementById('trNotes').value.trim();
+  if(!name){ toast('Add a name'); return; }
+  state.treatments.push({id:uid(), name, kind, start, end, notes});
+  state.treatments.sort((a,b)=>new Date(b.start)-new Date(a.start));
+  saveState(); closeModal(); renderAll(); toast('Saved');
+}
+function deleteTreatment(id){ state.treatments = state.treatments.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- Allergy modal ---- */
+function openAllergyModal(){
+  renderModal(`
+    <div class="modal-head"><h2>Log an allergy</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field"><label class="field-label">Allergen</label><input type="text" id="alAllergen" placeholder="e.g. Penicillin, latex, peanuts" autofocus></div>
+    <div class="field">
+      <label class="field-label">Severity</label>
+      <select id="alSeverity">
+        <option value="Mild">Mild</option>
+        <option value="Moderate">Moderate</option>
+        <option value="Severe">Severe</option>
+        <option value="Life-threatening">Life-threatening</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">Reaction (optional)</label><input type="text" id="alReaction" placeholder="e.g. Rash, swelling, anaphylaxis"></div>
+    <div class="field"><label class="field-label">Notes (optional)</label><textarea id="alNotes" placeholder="Anything else your care team should know"></textarea></div>
+    <button class="btn btn-primary" onclick="saveAllergy()">Save allergy</button>
+  `);
+}
+function saveAllergy(){
+  const allergen = document.getElementById('alAllergen').value.trim();
+  const severity = document.getElementById('alSeverity').value;
+  const reaction = document.getElementById('alReaction').value.trim();
+  const notes = document.getElementById('alNotes').value.trim();
+  if(!allergen){ toast('Add an allergen'); return; }
+  state.allergies.push({id:uid(), allergen, severity, reaction, notes});
+  saveState(); closeModal(); renderAll(); toast('Allergy logged');
+}
+function deleteAllergy(id){ state.allergies = state.allergies.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- Documents (photos of paperwork, email screenshots, PDFs) ---- */
+let docDraftFile = null;
+let docDraftFormat = null; // 'image' | 'pdf'
+const MAX_PDF_BYTES = 4 * 1024 * 1024; // keep comfortably under the 5MB per-key storage limit after base64 overhead
+const PDF_ICON = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#F3E3D3"/>
+  <rect x="26" y="18" width="48" height="64" rx="4" fill="#fff" stroke="#C97A3D" stroke-width="2.5"/>
+  <text x="50" y="56" font-family="Arial" font-size="15" font-weight="700" fill="#C97A3D" text-anchor="middle">PDF</text></svg>`);
+
+function readAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => { img.onload = () => {
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height = Math.round(height*maxDim/width); width = maxDim; }
+      else if(height>=width && height>maxDim){ width = Math.round(width*maxDim/height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img,0,0,width,height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = e.target.result; };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function openDocumentModal(){
+  docDraftFile = null; docDraftFormat = null;
+  const now = new Date();
+  const linkOptions = [
+    ...state.surgeries.map(s=>`<option value="surgery:${s.id}">Surgery — ${escapeHtml(s.type)} (${fmtDate(s.date)})</option>`),
+    ...state.treatments.map(t=>`<option value="treatment:${t.id}">${t.kind==='medication'?'Medication':t.kind==='diet'?'Diet':'Therapy'} — ${escapeHtml(t.name)}</option>`)
+  ].join('');
+  renderModal(`
+    <div class="modal-head"><h2>Add a photo or document</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="upload-drop" id="uploadDrop">
+      <span id="uploadDropLabel">📷 Tap to take a photo, or choose a photo / PDF</span>
+      <input type="file" accept="image/*,application/pdf" id="docFileInput" onchange="handleDocFileChosen(this)">
+    </div>
+    <img id="docPreviewImg" class="upload-preview" style="display:none;">
+    <div class="field"><label class="field-label">Title</label><input type="text" id="docTitle" placeholder="e.g. Discharge summary, email from Dr. Patel"></div>
+    <div class="field">
+      <label class="field-label">Type</label>
+      <div class="segmented" id="docKindSeg" style="margin-bottom:0;">
+        <button type="button" class="active" data-v="paper" onclick="setDocKind('paper')">Paper doc</button>
+        <button type="button" data-v="email" onclick="setDocKind('email')">Email</button>
+        <button type="button" data-v="other" onclick="setDocKind('other')">Other</button>
+      </div>
+    </div>
+    <input type="hidden" id="docKind" value="paper">
+    <div class="grid2">
+      <div class="field"><label class="field-label">Date</label><input type="date" id="docDate" value="${now.toISOString().slice(0,10)}"></div>
+      <div class="field">
+        <label class="field-label">Link to (optional)</label>
+        <select id="docLink"><option value="">None</option>${linkOptions}</select>
+      </div>
+    </div>
+    <div class="field"><label class="field-label">Note (optional)</label><textarea id="docNote" placeholder="What is this, and why it matters"></textarea></div>
+    <button class="btn btn-primary" id="docSaveBtn" onclick="saveDocument()">Save document</button>
+  `);
+}
+function setDocKind(kind){
+  document.getElementById('docKind').value = kind;
+  document.querySelectorAll('#docKindSeg button').forEach(b=>b.classList.toggle('active', b.dataset.v===kind));
+}
+function handleDocFileChosen(input){
+  const file = input.files[0];
+  if(!file) return;
+  const isPdf = file.type==='application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if(isPdf && file.size>MAX_PDF_BYTES){
+    toast('That PDF is too large (max ~4MB) — try a smaller file or a screenshot instead');
+    input.value='';
+    return;
+  }
+  docDraftFile = file;
+  docDraftFormat = isPdf ? 'pdf' : 'image';
+  const previewImg = document.getElementById('docPreviewImg');
+  if(isPdf){
+    previewImg.style.display = 'none';
+    document.getElementById('uploadDropLabel').textContent = '📄 ' + file.name;
+  }else{
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      document.getElementById('uploadDropLabel').textContent = '✓ ' + file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+async function saveDocument(){
+  if(!docDraftFile){ toast('Choose a photo or PDF first'); return; }
+  const title = document.getElementById('docTitle').value.trim();
+  if(!title){ toast('Add a title'); return; }
+  const kind = document.getElementById('docKind').value;
+  const date = document.getElementById('docDate').value;
+  const note = document.getElementById('docNote').value.trim();
+  const linkVal = document.getElementById('docLink').value;
+  let linkedType=null, linkedId=null;
+  if(linkVal){ [linkedType, linkedId] = linkVal.split(':'); }
+
+  const saveBtn = document.getElementById('docSaveBtn');
+  saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+  try{
+    const id = uid();
+    let thumb;
+    if(docDraftFormat==='pdf'){
+      const full = await readAsDataURL(docDraftFile);
+      await window.storage.set('docimg:'+id, full, false);
+      thumb = null; // uses the generic PDF icon at render time
+    }else{
+      const [thumbImg, full] = await Promise.all([
+        resizeImage(docDraftFile, 320, 0.6),
+        resizeImage(docDraftFile, 1600, 0.75)
+      ]);
+      await window.storage.set('docimg:'+id, full, false);
+      thumb = thumbImg;
+    }
+    state.documents.push({id, date, title, kind, format:docDraftFormat, note, linkedType, linkedId, thumb});
+    state.documents.sort((a,b)=>new Date(b.date)-new Date(a.date));
+    saveState();
+    closeModal(); renderAll(); toast('Document saved');
+  }catch(e){
+    console.error(e);
+    toast('Could not save — try a smaller file');
+    saveBtn.textContent = 'Save document'; saveBtn.disabled = false;
+  }
+}
+function linkedLabel(doc){
+  if(!doc.linkedType) return '';
+  if(doc.linkedType==='surgery'){
+    const s = state.surgeries.find(x=>x.id===doc.linkedId);
+    return s ? `Linked to surgery: ${s.type}` : '';
+  }
+  if(doc.linkedType==='treatment'){
+    const t = state.treatments.find(x=>x.id===doc.linkedId);
+    return t ? `Linked to: ${t.name}` : '';
+  }
+  return '';
+}
+const DOC_KIND_LABEL = {paper:'Paper doc', email:'Email', other:'Other'};
+function renderDocumentsTab(){
+  const grid = document.getElementById('documentGrid');
+  if(!state.documents.length){
+    grid.innerHTML = `<div class="empty"><span class="eicon">📎</span>Nothing uploaded yet.</div>`;
+    return;
+  }
+  grid.innerHTML = `<div class="doc-grid">${state.documents.map(d=>`
+    <button type="button" class="doc-card" onclick="openDocumentViewer('${d.id}')">
+      <img class="doc-thumb" src="${d.format==='pdf' ? PDF_ICON : d.thumb}" alt="${escapeHtml(d.title)}">
+      <div class="doc-meta">
+        <div class="doc-title">${escapeHtml(d.title)}</div>
+        <div class="doc-date">${DOC_KIND_LABEL[d.kind]||'Other'} · ${fmtDate(d.date+'T00:00')}</div>
+      </div>
+    </button>`).join('')}</div>`;
+}
+async function openDocumentViewer(id){
+  const doc = state.documents.find(d=>d.id===id);
+  if(!doc) return;
+  renderModal(`
+    <div class="modal-head"><h2>${escapeHtml(doc.title)}</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div id="docViewerBody"><div class="spinner"></div></div>
+  `);
+  try{
+    const res = await window.storage.get('docimg:'+id, false);
+    const src = (res && res.value) ? res.value : null;
+    const metaBlock = `
+      <div class="card-flat" style="margin-bottom:14px;">
+        <div class="li-date">${DOC_KIND_LABEL[doc.kind]||'Other'} · ${fmtDate(doc.date+'T00:00')}</div>
+        ${linkedLabel(doc) ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${escapeHtml(linkedLabel(doc))}</div>` : ''}
+        ${doc.note ? `<div class="li-notes" style="margin-top:6px;">${escapeHtml(doc.note)}</div>` : ''}
+      </div>
+      <button class="btn btn-outline" onclick="deleteDocument('${id}')">Delete document</button>
+    `;
+    if(doc.format==='pdf'){
+      document.getElementById('docViewerBody').innerHTML = `
+        <div style="text-align:center;padding:24px 10px;background:var(--surface-alt);border-radius:var(--radius-m);margin-bottom:14px;">
+          <img src="${PDF_ICON}" style="width:56px;height:56px;margin-bottom:10px;">
+          <div style="font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;">PDF document</div>
+          ${src ? `<a href="${src}" download="${escapeHtml(doc.title)}.pdf" class="btn btn-primary" style="width:auto;display:inline-flex;">Open / download PDF</a>` : `<span style="font-size:13px;color:var(--ink-faint);">Couldn't load this file.</span>`}
+        </div>
+        ${metaBlock}`;
+    }else{
+      document.getElementById('docViewerBody').innerHTML = `
+        <img class="doc-viewer-img" src="${src || doc.thumb}">
+        ${metaBlock}`;
+    }
+  }catch(e){
+    document.getElementById('docViewerBody').innerHTML = `<div class="empty">Couldn't load the full file.</div><button class="btn btn-outline" onclick="deleteDocument('${id}')">Delete document</button>`;
+  }
+}
+async function deleteDocument(id){
+  if(!confirm('Delete this document? This cannot be undone.')) return;
+  state.documents = state.documents.filter(d=>d.id!==id);
+  saveState();
+  try{ await window.storage.delete('docimg:'+id, false); }catch(e){ /* already gone */ }
+  closeModal(); renderAll(); toast('Document deleted');
+}
+
+/* ---- Care team & IDs ---- */
+function renderCareTeamTab(){
+  const c = state.careInfo;
+  const container = document.getElementById('careTeamCards');
+  if(!container) return;
+
+  const contactCard = (title, icon, key, data, fields) => {
+    const filled = fields.some(f=>data[f.key]);
+    return `
+    <div class="card">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>${icon} ${title}</h2>
+        <button class="btn btn-sm btn-outline" onclick="openCareEditModal('${key}')">${filled?'Edit':'Add'}</button>
+      </div>
+      ${filled ? fields.filter(f=>data[f.key]).map(f=>`
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11.5px;color:var(--ink-faint);font-weight:600;">${f.label}</div>
+          <div style="font-size:14px;white-space:pre-line;">${
+            f.type==='tel' ? `<a href="tel:${encodeURIComponent(data[f.key])}" style="color:var(--primary-dark);">${escapeHtml(data[f.key])}</a>`
+            : f.type==='email' ? `<a href="mailto:${encodeURIComponent(data[f.key])}" style="color:var(--primary-dark);">${escapeHtml(data[f.key])}</a>`
+            : escapeHtml(data[f.key])
+          }</div>
+        </div>`).join('') : `<div class="empty" style="padding:8px 0;">Not added yet.</div>`}
+    </div>`;
+  };
+
+  container.innerHTML =
+    contactCard('Health & insurance', '🪪', 'ids', c, [
+      {key:'healthNumber', label:'National health / NHI / Medicare number'},
+      {key:'healthSystem', label:'System / country (e.g. NHI – New Zealand, NHS – UK, Medicare – Australia)'},
+      {key:'insuranceProvider', label:'Insurance provider'},
+      {key:'insurancePolicy', label:'Policy number'},
+      {key:'insuranceClaim', label:'Claim number'},
+      {key:'insurancePhone', label:'Insurance phone', type:'tel'}
+    ]) +
+    contactCard('GP / primary doctor', '🩺', 'gp', c.gp, [
+      {key:'name', label:'Name'},
+      {key:'clinic', label:'Clinic / practice'},
+      {key:'phone', label:'Phone', type:'tel'},
+      {key:'email', label:'Email', type:'email'},
+      {key:'address', label:'Address'}
+    ]) +
+    contactCard('Surgeon / ENT', '🔪', 'surgeon', c.surgeon, [
+      {key:'name', label:'Name'},
+      {key:'clinic', label:'Hospital / clinic'},
+      {key:'phone', label:'Phone', type:'tel'},
+      {key:'email', label:'Email', type:'email'},
+      {key:'address', label:'Address'}
+    ]) +
+    contactCard('Next of kin', '👤', 'nextOfKin', c.nextOfKin, [
+      {key:'name', label:'Name'},
+      {key:'relationship', label:'Relationship'},
+      {key:'phone', label:'Phone', type:'tel'},
+      {key:'email', label:'Email', type:'email'},
+      {key:'address', label:'Address'}
+    ]);
+}
+
+const CARE_EDIT_CONFIG = {
+  ids: {
+    title:'Health & insurance',
+    getData: () => state.careInfo,
+    save: (d) => { Object.assign(state.careInfo, d); },
+    fields: [
+      {key:'healthNumber', label:'National health / NHI / Medicare number', placeholder:'e.g. NHI number, NHS number, Medicare number, insurance member ID'},
+      {key:'healthSystem', label:'System / country', placeholder:'e.g. NHI (New Zealand), NHS (UK), Medicare (Australia), Anthem (US)'},
+      {key:'insuranceProvider', label:'Insurance provider', placeholder:'e.g. Bupa, Aetna, HCF'},
+      {key:'insurancePolicy', label:'Policy number', placeholder:''},
+      {key:'insuranceClaim', label:'Claim number', placeholder:'If you have an active claim'},
+      {key:'insurancePhone', label:'Insurance phone', placeholder:'e.g. +44 20 7946 0000', type:'text'}
+    ]
+  },
+  gp: {
+    title:'GP / primary doctor',
+    getData: () => state.careInfo.gp,
+    save: (d) => { Object.assign(state.careInfo.gp, d); },
+    fields: [
+      {key:'name', label:'Name', placeholder:'Dr. …'},
+      {key:'clinic', label:'Clinic / practice', placeholder:''},
+      {key:'phone', label:'Phone', placeholder:'e.g. +1 415 555 0100'},
+      {key:'email', label:'Email', placeholder:''},
+      {key:'address', label:'Address', placeholder:'Street, city, region, postcode, country', textarea:true}
+    ]
+  },
+  surgeon: {
+    title:'Surgeon / ENT',
+    getData: () => state.careInfo.surgeon,
+    save: (d) => { Object.assign(state.careInfo.surgeon, d); },
+    fields: [
+      {key:'name', label:'Name', placeholder:'Dr. …'},
+      {key:'clinic', label:'Hospital / clinic', placeholder:''},
+      {key:'phone', label:'Phone', placeholder:'e.g. +61 2 9000 0000'},
+      {key:'email', label:'Email', placeholder:''},
+      {key:'address', label:'Address', placeholder:'Street, city, region, postcode, country', textarea:true}
+    ]
+  },
+  nextOfKin: {
+    title:'Next of kin',
+    getData: () => state.careInfo.nextOfKin,
+    save: (d) => { Object.assign(state.careInfo.nextOfKin, d); },
+    fields: [
+      {key:'name', label:'Name', placeholder:''},
+      {key:'relationship', label:'Relationship', placeholder:'e.g. Spouse, parent, sibling'},
+      {key:'phone', label:'Phone', placeholder:'e.g. +353 87 000 0000'},
+      {key:'email', label:'Email', placeholder:''},
+      {key:'address', label:'Address', placeholder:'Street, city, region, postcode, country', textarea:true}
+    ]
+  }
+};
+function openCareEditModal(key){
+  const cfg = CARE_EDIT_CONFIG[key];
+  const data = cfg.getData();
+  renderModal(`
+    <div class="modal-head"><h2>${cfg.title}</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    ${cfg.fields.map(f=>`
+      <div class="field">
+        <label class="field-label">${f.label}</label>
+        ${f.textarea
+          ? `<textarea id="care_${key}_${f.key}" placeholder="${escapeHtml(f.placeholder||'')}">${escapeHtml(data[f.key]||'')}</textarea>`
+          : `<input type="text" id="care_${key}_${f.key}" placeholder="${escapeHtml(f.placeholder||'')}" value="${escapeHtml(data[f.key]||'')}">`}
+      </div>`).join('')}
+    <button class="btn btn-primary" onclick="saveCareEdit('${key}')">Save</button>
+  `);
+}
+function saveCareEdit(key){
+  const cfg = CARE_EDIT_CONFIG[key];
+  const updated = {};
+  cfg.fields.forEach(f=>{ updated[f.key] = document.getElementById(`care_${key}_${f.key}`).value.trim(); });
+  cfg.save(updated);
+  saveState(); closeModal(); renderAll(); toast('Saved');
+}
+
+/* ============ REMINDER ============ */
+function toggleReminder(){
+  state.settings.reminderEnabled = document.getElementById('reminderToggle').checked;
+  document.getElementById('reminderControls').style.display = state.settings.reminderEnabled ? 'block':'none';
+  saveState(); renderAll();
+}
+function saveReminderSettings(){
+  state.settings.reminderDay = parseInt(document.getElementById('reminderDay').value);
+  state.settings.reminderTime = document.getElementById('reminderTime').value;
+  saveState(); renderAll();
+}
+function downloadReminderICS(){
+  const days=['SU','MO','TU','WE','TH','FR','SA'];
+  const day = days[state.settings.reminderDay];
+  const [hh,mm] = state.settings.reminderTime.split(':');
+  const now = new Date();
+  const dtStart = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}T${hh}${mm}00`;
+  const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Airway Tracker//EN
+BEGIN:VEVENT
+UID:${uid()}@airway-tracker
+DTSTART:${dtStart}
+RRULE:FREQ=WEEKLY;BYDAY=${day}
+SUMMARY:Log peak flow — Airway Tracker
+DESCRIPTION:Weekly peak flow reading. Same time each week keeps the trend meaningful.
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Peak flow reminder
+TRIGGER:-PT0M
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+  const blob = new Blob([ics], {type:'text/calendar'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'peak-flow-reminder.ics';
+  a.click();
+  toast('Calendar file downloaded');
+}
+
+/* ============ CHARTS (lightweight inline SVG) ============ */
+function buildLineChart(svgEl, series, opts={}){
+  // series: [{points:[{x:Date,y:number}], color, markers:bool}]
+  const W=340,H=160,padL=34,padR=10,padT=14,padB=22;
+  svgEl.innerHTML='';
+  svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const allPts = series.flatMap(s=>s.points);
+  if(allPts.length===0){
+    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8B9A9D" font-size="12" font-family="IBM Plex Sans">Not enough data yet</text>`;
+    return;
+  }
+  const xs = allPts.map(p=>p.x.getTime());
+  const ys = allPts.map(p=>p.y);
+  let minX=Math.min(...xs), maxX=Math.max(...xs);
+  if(minX===maxX){ minX-=86400000; maxX+=86400000; }
+  let minY = opts.minY!==undefined?opts.minY:Math.min(...ys);
+  let maxY = opts.maxY!==undefined?opts.maxY:Math.max(...ys);
+  if(minY===maxY){ minY-=1; maxY+=1; }
+  const pad = (maxY-minY)*0.12;
+  minY-=pad; maxY+=pad;
+  const sx = x => padL + ( (x-minX)/(maxX-minX) ) * (W-padL-padR);
+  const sy = y => (H-padB) - ( (y-minY)/(maxY-minY) ) * (H-padT-padB);
+
+  let svg = '';
+  // gridlines
+  for(let i=0;i<=3;i++){
+    const gy = padT + i*(H-padT-padB)/3;
+    svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#E3E8E5" stroke-width="1"/>`;
+  }
+  // surgery markers
+  (opts.markers||[]).forEach(m=>{
+    const mx = sx(m.getTime());
+    if(mx>=padL && mx<=W-padR){
+      svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#C97A3D" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+    }
+  });
+  // optional threshold reference line (e.g. low-oxygen cutoff)
+  if(opts.threshold!==undefined){
+    const ty = sy(opts.threshold);
+    svg += `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W-padR}" y2="${ty.toFixed(1)}" stroke="#C1503A" stroke-width="1" stroke-dasharray="2,3"/>`;
+  }
+  // series lines
+  series.forEach(s=>{
+    if(s.points.length===0) return;
+    const pathD = s.points.map((p,i)=>`${i===0?'M':'L'}${sx(p.x.getTime()).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
+    svg += `<path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    s.points.forEach(p=>{
+      const below = opts.threshold!==undefined && p.y<opts.threshold;
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${below?'#C1503A':s.color}"/>`;
+    });
+  });
+  // y-axis labels
+  svg += `<text x="4" y="${sy(maxY-pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(maxY-pad)}</text>`;
+  svg += `<text x="4" y="${sy(minY+pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(minY+pad)}</text>`;
+  // x-axis labels (first/last)
+  const first = new Date(minX), last = new Date(maxX);
+  const fmt = d => d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  svg += `<text x="${padL}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${fmt(first)}</text>`;
+  svg += `<text x="${W-padR}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans" text-anchor="end">${fmt(last)}</text>`;
+  svgEl.innerHTML = svg;
+}
+
+/* ============ RENDER ============ */
+function renderAll(){
+  if(!stateLoaded) return;
+  renderToday();
+  renderPeakFlowTab();
+  renderOxygenTab();
+  renderSymptomsTab();
+  renderSurgeryTab();
+  renderTreatmentTab();
+  renderAllergyTab();
+  renderDocumentsTab();
+  renderCareTeamTab();
+  document.getElementById('reminderToggle').checked = !!state.settings.reminderEnabled;
+  document.getElementById('reminderControls').style.display = state.settings.reminderEnabled ? 'block':'none';
+  document.getElementById('reminderDay').value = state.settings.reminderDay;
+  document.getElementById('reminderTime').value = state.settings.reminderTime;
+}
+
+function isWithinDays(iso, days){
+  const diff = (Date.now()-new Date(iso).getTime())/86400000;
+  return diff>=0 && diff<=days;
+}
+
+function renderToday(){
+  const banners = [];
+  // Post-surgery recovery banner
+  const recentSurgery = [...state.surgeries].reverse().find(s=>isWithinDays(s.date,10));
+  if(recentSurgery){
+    const dayNum = Math.floor((Date.now()-new Date(recentSurgery.date).getTime())/86400000);
+    const isSurgeryDay = dayNum===0;
+    banners.push(`
+      <div class="banner recovery">
+        <div class="banner-icon">🌿</div>
+        <div>
+          <div class="banner-title">${isSurgeryDay ? "Surgery day" : "Day "+dayNum+" post-op"} — ${recentSurgery.type}</div>
+          <div class="banner-body">${isSurgeryDay
+            ? "Take a peak flow reading today as your post-surgery baseline, if your care team has approved it."
+            : "Rest and recover. Keep activity light and let your airway heal — log symptoms if anything feels off."}</div>
+          <button class="link" onclick="openPeakFlowModal()">Log peak flow</button>
+        </div>
+      </div>`);
+  }
+  // Weekly reminder banner
+  if(state.settings.reminderEnabled){
+    const now = new Date();
+    const lastPF = state.peakFlow[state.peakFlow.length-1];
+    const daysSince = lastPF ? (Date.now()-new Date(lastPF.date).getTime())/86400000 : 999;
+    if(now.getDay()===state.settings.reminderDay && daysSince>=1){
+      banners.push(`
+        <div class="banner reminder">
+          <div class="banner-icon">⏰</div>
+          <div>
+            <div class="banner-title">Peak flow reminder</div>
+            <div class="banner-body">It's your usual day to log a reading — aim for around ${state.settings.reminderTime}.</div>
+            <button class="link" onclick="openPeakFlowModal()">Log now</button>
+          </div>
+        </div>`);
+    }
+  }
+  document.getElementById('todayBanners').innerHTML = banners.join('');
+
+  const latest = state.peakFlow[state.peakFlow.length-1];
+  const max = state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null;
+  document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
+  document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
+
+  const o2Readings = getCombinedOxygenReadings();
+  const latestO2 = o2Readings.length ? o2Readings[o2Readings.length-1].value : null;
+  const lowO2 = o2Readings.length ? Math.min(...o2Readings.map(r=>r.value)) : null;
+  document.getElementById('todayLatestO2').innerHTML = latestO2!==null ? `${latestO2}<span class="stat-unit">%</span>` : '—';
+  document.getElementById('todayLatestO2').style.color = (latestO2!==null && latestO2<92) ? 'var(--sev4)' : 'var(--ink)';
+  document.getElementById('todayLowO2').innerHTML = lowO2!==null ? `${lowO2}<span class="stat-unit">%</span>` : '—';
+
+  const latestSym = state.symptoms[state.symptoms.length-1];
+  const sumEl = document.getElementById('todaySymptomSummary');
+  if(!latestSym){
+    sumEl.innerHTML = `<div class="empty" style="padding:10px;"><span class="eicon">🌤️</span>No symptoms logged yet.</div>`;
+  }else{
+    const items = [[state.settings.fixedSymptomLabels.cough,latestSym.cough],[state.settings.fixedSymptomLabels.mucus,latestSym.mucus],[state.settings.fixedSymptomLabels.stridor,latestSym.stridor],[state.settings.fixedSymptomLabels.voice,latestSym.voice],
+      ...(latestSym.custom||[]).map(c=>[c.label,c.value])];
+    sumEl.innerHTML = items.map(([label,val])=>`
+      <div class="row" style="padding:2px 0;">
+        <span style="font-size:13.5px;color:var(--ink-soft);">${label}</span>
+        <span class="sev-opt sel-${val} active" style="flex:none;width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;">${val}</span>
+      </div>`).join('') + `<div style="font-size:11.5px;color:var(--ink-faint);margin-top:4px;">Logged ${fmtDate(latestSym.date)}</div>`;
+  }
+
+  // recent activity feed (last 4 across everything)
+  const combined = [
+    ...state.peakFlow.map(r=>({date:r.date, text:`Peak flow logged — ${r.value} L/min`})),
+    ...state.oxygen.map(r=>({date:r.date, text:`SpO₂ logged — ${r.value}%`})),
+    ...state.surgeries.map(r=>({date:r.date, text:`Surgery: ${r.type}`})),
+    ...state.treatments.map(r=>({date:r.start+'T00:00', text:`${r.kind==='medication'?'Started medication':'Started diet'}: ${r.name}`})),
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4);
+  const upEl = document.getElementById('upcomingCard');
+  if(combined.length){
+    upEl.style.display='block';
+    document.getElementById('recentActivityList').innerHTML = combined.map(c=>`
+      <div class="list-item"><div class="li-main"><div class="li-date">${fmtDate(c.date)}</div><div class="li-title" style="font-size:13.5px;">${c.text}</div></div></div>
+    `).join('');
+  }else{ upEl.style.display='none'; }
+}
+
+function renderPeakFlowTab(){
+  const max = state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null;
+  const latest = state.peakFlow[state.peakFlow.length-1];
+  document.getElementById('pfMax').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
+  document.getElementById('pfLatest').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
+
+  const pts = state.peakFlow.map(r=>({x:new Date(r.date), y:r.value}));
+  const markers = state.surgeries.map(s=>new Date(s.date));
+  buildLineChart(document.getElementById('pfChart'), [{points:pts,color:'#0F6E68'}], {markers});
+
+  // % of max peak flow
+  const maxPF = state.settings.maxPeakFlow;
+  const pctBody = document.getElementById('pfPercentBody');
+  if(!maxPF){
+    pctBody.innerHTML = `
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your max peak flow (personal best, or a value given by your care team) in Settings to see each reading as a % of that.</p>
+      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add max peak flow</button>`;
+  }else if(!state.peakFlow.length){
+    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a peak flow reading to see your % of max.</div>`;
+  }else{
+    const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
+    const latestPct = withPct[withPct.length-1].pct;
+    const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
+    pctBody.innerHTML = `
+      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span></div>
+      <div class="stat-label" style="margin-bottom:14px;">Latest, vs. max ${maxPF} L/min</div>
+      <div class="chart-wrap"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of max</span>
+        <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 50%</span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
+        % of max compares each reading to the max peak flow you entered in Settings — update that value any time your baseline changes.
+      </p>`;
+    buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, threshold:50});
+  }
+
+  const listEl = document.getElementById('pfList');
+  if(!state.peakFlow.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first peak flow above.</div>`;
+  }else{
+    listEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
+      const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
+      return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDateTime(r.date)}</div>
+          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of max`:''}</div>
+          ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderOxygenTab(){
+  const readings = getCombinedOxygenReadings();
+  const latest = readings.length ? readings[readings.length-1].value : null;
+  const low = readings.length ? Math.min(...readings.map(r=>r.value)) : null;
+  document.getElementById('oxLatest').innerHTML = latest!==null ? `${latest}<span class="stat-unit">%</span>` : '—';
+  document.getElementById('oxLatest').style.color = (latest!==null && latest<92) ? 'var(--sev4)' : 'var(--ink)';
+  document.getElementById('oxLow').innerHTML = low!==null ? `${low}<span class="stat-unit">%</span>` : '—';
+
+  const pts = readings.map(r=>({x:new Date(r.date), y:r.value}));
+  const markers = state.surgeries.map(s=>new Date(s.date));
+  buildLineChart(document.getElementById('oxChart'), [{points:pts,color:'#5C8A9E'}], {markers, minY:80, maxY:100, threshold:92});
+
+  const listEl = document.getElementById('oxList');
+  if(!readings.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">🩸</span>No readings yet — log your first SpO₂ reading above.</div>`;
+  }else{
+    listEl.innerHTML = [...readings].reverse().map(r=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDateTime(r.date)}</div>
+          <div class="li-title" style="${r.value<92?'color:var(--sev4);':''}">${r.value}%</div>
+          ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
+        </div>
+        ${r.legacy ? '' : `<button class="li-del" onclick="deleteOxygen('${r.id}')" aria-label="Delete">✕</button>`}
+      </div>`).join('');
+  }
+}
+
+function renderSymptomsTab(){
+  // chart only plots the fixed core symptoms — custom activities can change name/count over time
+  const defs = [['cough',state.settings.fixedSymptomLabels.cough,'#0F6E68'],['mucus',state.settings.fixedSymptomLabels.mucus,'#5C8A9E'],['stridor',state.settings.fixedSymptomLabels.stridor,'#C97A3D'],['voice',state.settings.fixedSymptomLabels.voice,'#B65C8A']];
+  const chartWrap = document.getElementById('symChartWrap');
+  const tableWrap = document.getElementById('symTableWrap');
+  if(state.symptoms.length<3){
+    chartWrap.style.display = 'none';
+    tableWrap.style.display = 'block';
+    if(!state.symptoms.length){
+      tableWrap.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a couple of symptom entries to see them here.</div>`;
+    }else{
+      const rows = [...state.symptoms].reverse();
+      tableWrap.innerHTML = `<table style="border-collapse:collapse;width:100%;font-size:13px;">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;">Symptom</th>
+          ${rows.map(s=>`<th style="text-align:center;padding:6px 8px;color:var(--ink-faint);font-weight:600;">${fmtDate(s.date)}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${defs.map(([key,label,color])=>`
+            <tr>
+              <td style="padding:6px 8px 6px 0;white-space:nowrap;"><span class="legend-dot" style="background:${color};"></span>${escapeHtml(label)}</td>
+              ${rows.map(s=>`<td style="text-align:center;padding:6px 8px;">${typeof s[key]==='number' ? s[key] : '—'}</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
+  }else{
+    chartWrap.style.display = 'block';
+    tableWrap.style.display = 'none';
+    const series = defs.map(([key,label,color])=>({
+      points: state.symptoms.filter(s=>typeof s[key]==='number').map(s=>({x:new Date(s.date), y:s[key]})),
+      color
+    }));
+    buildLineChart(document.getElementById('symChart'), series, {minY:0,maxY:4});
+  }
+  document.getElementById('symLegend').innerHTML = defs.map(([k,label,color])=>`<span><span class="legend-dot" style="background:${color};"></span>${label}</span>`).join('') + `<span style="color:var(--ink-faint);">Your own activities are in the history list below</span>`;
+
+  const listEl = document.getElementById('symList');
+  if(!state.symptoms.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
+  }else{
+    listEl.innerHTML = [...state.symptoms].reverse().map(s=>{
+      const customText = (s.custom||[]).map(c=>`${escapeHtml(c.label)} ${c.value}`).join(' · ');
+      const coreText = [
+        typeof s.cough==='number' ? `${state.settings.fixedSymptomLabels.cough} ${s.cough}`:null,
+        typeof s.mucus==='number' ? `${state.settings.fixedSymptomLabels.mucus} ${s.mucus}`:null,
+        typeof s.stridor==='number' ? `${state.settings.fixedSymptomLabels.stridor} ${s.stridor}`:null,
+        typeof s.voice==='number' ? `${state.settings.fixedSymptomLabels.voice} ${s.voice}`:null
+      ].filter(Boolean).join(' · ');
+      return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDate(s.date)}</div>
+          <div class="li-notes" style="margin-top:5px;">${[coreText,customText].filter(Boolean).join(' · ')}</div>
+        </div>
+        <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderSurgeryTab(){
+  const listEl = document.getElementById('surgeryList');
+  if(!state.surgeries.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">🏥</span>No surgeries logged yet.</div>`;
+  }else{
+    listEl.innerHTML = [...state.surgeries].reverse().map(s=>{
+      const locText = formatSurgeryLocation(s.location);
+      return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDate(s.date)}</div>
+          <div class="li-title">${escapeHtml(s.type)}</div>
+          ${locText?`<div style="font-size:12.5px;color:var(--primary-dark);font-weight:600;margin-top:2px;">${escapeHtml(locText)}</div>`:''}
+          ${s.notes?`<div class="li-notes">${escapeHtml(s.notes)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deleteSurgery('${s.id}')" aria-label="Delete">✕</button>
+      </div>`;
+    }).join('');
+  }
+}
+function renderTreatmentTab(){
+  const listEl = document.getElementById('treatmentList');
+  if(!state.treatments.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">💊</span>Nothing logged yet.</div>`;
+  }else{
+    listEl.innerHTML = [...state.treatments].reverse().map(t=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${t.start?fmtDate(t.start+'T00:00'):''}${t.end?' → '+fmtDate(t.end+'T00:00'):(t.start?' → ongoing':'')}</div>
+          <div class="li-title">${escapeHtml(t.name)} <span class="kind-tag ${t.kind}">${t.kind}</span></div>
+          ${t.notes?`<div class="li-notes">${escapeHtml(t.notes)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deleteTreatment('${t.id}')" aria-label="Delete">✕</button>
+      </div>`).join('');
+  }
+}
+const ALLERGY_SEVERITY_COLOR = {Mild:'var(--sev1)', Moderate:'var(--sev2)', Severe:'var(--sev3)', 'Life-threatening':'var(--sev4)'};
+function renderAllergyTab(){
+  const listEl = document.getElementById('allergyList');
+  if(!listEl) return;
+  if(!state.allergies.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">⚠️</span>No allergies logged yet.</div>`;
+  }else{
+    listEl.innerHTML = [...state.allergies].reverse().map(a=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-title">${escapeHtml(a.allergen)} <span class="kind-tag" style="background:${ALLERGY_SEVERITY_COLOR[a.severity]||'var(--primary-soft)'};color:#fff;">${escapeHtml(a.severity||'')}</span></div>
+          ${a.reaction?`<div class="li-notes">${escapeHtml(a.reaction)}</div>`:''}
+          ${a.notes?`<div class="li-notes">${escapeHtml(a.notes)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deleteAllergy('${a.id}')" aria-label="Delete">✕</button>
+      </div>`).join('');
+  }
+}
+function escapeHtml(str){
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+/* ============ SETTINGS / EXPORT ============ */
+function openSettings(){
+  renderModal(`
+    <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+
+    <h2 style="margin-bottom:8px;">Max peak flow</h2>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Your personal best, or a value given by your care team. Used to show each peak flow reading as a % of max — stored on this device, never shared.</p>
+    <div class="field">
+      <label class="field-label">Max peak flow (L/min)</label>
+      <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
+    </div>
+    <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
+
+    <div class="stack">
+      <button class="btn btn-primary" onclick="openFeedbackModal()">💬 Give feedback</button>
+      <button class="btn btn-outline" onclick="openFeedbackListModal()">View feedback from others</button>
+      <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
+      <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
+      <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.')) clearData();">Delete all data</button>
+    </div>
+    <div class="disclaimer" style="padding-top:18px;">
+      Airway is a personal tracking tool, not a medical device. It doesn't diagnose or treat any condition.
+      Always follow your ENT or pulmonologist's guidance, and seek urgent care for sudden or severe breathing difficulty.
+      Your tracking data (peak flow, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared. Feedback you submit is shared and visible to other people using this app.
+    </div>
+  `);
+}
+function saveMaxPeakFlow(){
+  const raw = document.getElementById('maxPFInput').value;
+  const value = raw!=='' ? parseFloat(raw) : null;
+  if(value!==null && (isNaN(value) || value<=0)){ toast('Enter a valid max peak flow'); return; }
+  state.settings.maxPeakFlow = value;
+  saveState(); closeModal(); renderAll(); toast('Max peak flow saved');
+}
+
+/* ---- Feedback ---- */
+const FEEDBACK_FACES = ['😞','🙁','😐','🙂','😄'];
+let feedbackDraft = { rating:null, wantsNotifications:null };
+function openFeedbackModal(){
+  feedbackDraft = { rating:null, wantsNotifications:null };
+  renderModal(`
+    <div class="modal-head"><h2>Give feedback</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">This helps decide what to build next — including whether a full website with real calendar push notifications is worth building. Feedback is shared, not private like your tracking data.</p>
+
+    <div class="field">
+      <label class="field-label">How's the app working for you?</label>
+      <div class="sev-picker" id="feedbackFaces">
+        ${FEEDBACK_FACES.map((f,i)=>`<button type="button" class="sev-opt" data-val="${i+1}" onclick="pickFeedbackRating(${i+1})" style="font-size:18px;">${f}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Would you want real calendar / push notification reminders enough to use a full website version (instead of this in-browser app)?</label>
+      <div class="segmented" id="feedbackNotif" style="margin-bottom:0;">
+        <button type="button" data-v="yes" onclick="pickFeedbackNotif('yes')">Yes</button>
+        <button type="button" data-v="maybe" onclick="pickFeedbackNotif('maybe')">Maybe</button>
+        <button type="button" data-v="no" onclick="pickFeedbackNotif('no')">No</button>
+      </div>
+    </div>
+
+    <div class="field"><label class="field-label">Anything else? (bugs, missing features, confusing bits)</label><textarea id="fbMessage" placeholder="Tell me what's working and what's not..."></textarea></div>
+    <div class="field"><label class="field-label">Name or contact (optional)</label><input type="text" id="fbContact" placeholder="Leave blank to stay anonymous"></div>
+
+    <button class="btn btn-primary" onclick="submitFeedback()">Send feedback</button>
+  `);
+}
+function pickFeedbackRating(val){
+  feedbackDraft.rating = val;
+  document.querySelectorAll('#feedbackFaces .sev-opt').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)===val));
+}
+function pickFeedbackNotif(val){
+  feedbackDraft.wantsNotifications = val;
+  document.querySelectorAll('#feedbackNotif button').forEach(b=>b.classList.toggle('active', b.dataset.v===val));
+}
+async function submitFeedback(){
+  const message = document.getElementById('fbMessage').value.trim();
+  const contact = document.getElementById('fbContact').value.trim();
+  if(!feedbackDraft.rating){ toast('Tap a face to rate the app'); return; }
+  const entry = {
+    id: uid(),
+    date: todayISO(),
+    rating: feedbackDraft.rating,
+    wantsNotifications: feedbackDraft.wantsNotifications,
+    message, contact
+  };
+  try{
+    await window.storage.set('feedback:'+entry.id, JSON.stringify(entry), true);
+    closeModal();
+    toast('Thanks — feedback sent');
+  }catch(e){
+    console.error(e);
+    toast('Could not send feedback — try again');
+  }
+}
+async function openFeedbackListModal(){
+  renderModal(`
+    <div class="modal-head"><h2>Feedback from others</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div id="fbListBody"><div class="empty">Loading…</div></div>
+  `);
+  try{
+    const listRes = await window.storage.list('feedback:', true);
+    const keys = (listRes && listRes.keys) || [];
+    if(!keys.length){
+      document.getElementById('fbListBody').innerHTML = `<div class="empty"><span class="eicon">💬</span>No feedback yet — be the first.</div>`;
+      return;
+    }
+    const entries = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r && r.value) entries.push(JSON.parse(r.value));
+      }catch(e){ /* skip unreadable entry */ }
+    }
+    entries.sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const avg = entries.length ? (entries.reduce((s,e)=>s+(e.rating||0),0)/entries.length).toFixed(1) : '—';
+    const yesCount = entries.filter(e=>e.wantsNotifications==='yes').length;
+    document.getElementById('fbListBody').innerHTML = `
+      <div class="card-flat" style="margin-bottom:14px;">
+        <div class="row"><span style="font-size:13.5px;color:var(--ink-soft);">Average rating</span><strong>${avg} / 5</strong></div>
+        <div class="row" style="margin-top:6px;"><span style="font-size:13.5px;color:var(--ink-soft);">Want a full website w/ push notifications</span><strong>${yesCount} of ${entries.length}</strong></div>
+      </div>
+      ${entries.map(e=>`
+        <div class="list-item">
+          <div class="li-main">
+            <div class="li-date">${fmtDate(e.date)}${e.contact?' · '+escapeHtml(e.contact):''}</div>
+            <div class="li-title" style="font-size:14px;">${FEEDBACK_FACES[(e.rating||1)-1]} ${e.wantsNotifications?'· wants push: <strong>'+e.wantsNotifications+'</strong>':''}</div>
+            ${e.message?`<div class="li-notes">${escapeHtml(e.message)}</div>`:''}
+          </div>
+        </div>`).join('')}
+    `;
+  }catch(e){
+    console.error(e);
+    document.getElementById('fbListBody').innerHTML = `<div class="empty">Couldn't load feedback right now.</div>`;
+  }
+}
+function csvCell(v){
+  const s = (v===null||v===undefined) ? '' : String(v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function csvSection(title, headers, rows){
+  const lines = [title, headers.map(csvCell).join(',')];
+  rows.forEach(r=>lines.push(r.map(csvCell).join(',')));
+  return lines.join('\n');
+}
+function exportDataCSV(){
+  const sections = [
+    csvSection('Peak flow', ['Date','Value (L/min)','Note'],
+      state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
+    csvSection('SpO2', ['Date','Value (%)','Note'],
+      getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
+    csvSection('Symptoms', ['Date','Cough','Mucus','Stridor','Voice','Custom activities'],
+      state.symptoms.map(s=>[fmtDate(s.date), s.cough, s.mucus, s.stridor, s.voice, (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')])),
+    csvSection('Surgeries', ['Date','Procedure','Location','Notes'],
+      state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||''])),
+    csvSection('Treatments', ['Started','Ended','Name','Kind','Notes'],
+      state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||''])),
+    csvSection('Allergies', ['Allergen','Severity','Reaction','Notes'],
+      state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))
+  ];
+  const csv = sections.join('\n\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `airway-tracker-export-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+function exportDataPDF(){
+  const table = (title, headers, rows) => `
+    <h2>${title}</h2>
+    ${rows.length ? `<table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(String(c??''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : `<p class="empty-note">No data logged.</p>`}`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Airway export</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#16262B;padding:24px;}
+    h1{margin-bottom:2px;} .sub{color:#57696E;margin-bottom:20px;}
+    h2{margin-top:26px;margin-bottom:8px;border-bottom:1px solid #DDE3DF;padding-bottom:4px;}
+    table{border-collapse:collapse;width:100%;font-size:12.5px;margin-bottom:6px;}
+    th,td{border:1px solid #DDE3DF;padding:6px 8px;text-align:left;}
+    th{background:#EAF0EE;}
+    .empty-note{color:#8B9A9D;font-size:13px;}
+    @media print{ body{padding:0;} }
+  </style></head><body>
+    <h1>Airway — Stenosis Tracker export</h1>
+    <div class="sub">Generated ${fmtDate(todayISO())}</div>
+    ${table('Peak flow', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
+    ${table('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
+    ${table('Symptoms', ['Date','Cough','Mucus','Stridor','Voice','Custom activities'], state.symptoms.map(s=>[fmtDate(s.date), s.cough, s.mucus, s.stridor, s.voice, (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')]))}
+    ${table('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
+    ${table('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
+    ${table('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  if(!win){ toast('Allow pop-ups to export as PDF'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(), 300);
+}
+function clearData(){
+  state = {peakFlow:[],symptoms:[],surgeries:[],treatments:[],settings:{reminderEnabled:false,reminderDay:0,reminderTime:'20:00',unit:'L/min'}};
+  saveState(); closeModal(); renderAll(); toast('All data cleared');
+}
+
+/* ============ BREATH WAVE ANIMATION (one gentle load moment) ============ */
+(function animateBreath(){
+  const path = document.getElementById('wavePath');
+  if(!path) return;
+  let t=0;
+  function frame(){
+    t+=0.02;
+    const amp = 6 + Math.sin(t*0.6)*2;
+    path.setAttribute('d', `M1 10 Q 5 ${10-amp}, 9 10 T 17 10 T 25 10 T 33 10`);
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+loadState();
+</script>
+</body>
+</html>
