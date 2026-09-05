@@ -343,7 +343,7 @@
       <div class="grid2" style="margin-bottom:14px;">
         <div>
           <div class="stat-big" id="pfMax">—<span class="stat-unit">L/min</span></div>
-          <div class="stat-label">Personal max</div>
+          <div class="stat-label">Personal best peak flow</div>
         </div>
         <div>
           <div class="stat-big" id="pfLatest">—<span class="stat-unit">L/min</span></div>
@@ -453,11 +453,11 @@
 
   <!-- MEDICAL -->
   <section class="view" id="view-surgery">
-    <button class="btn btn-ghost" style="margin-bottom:14px;" onclick="openOxygenModal()"><span class="qicon">🩸</span>Log SpO₂ (optional)</button>
     <div class="segmented">
       <button class="active" data-seg="surgeries" onclick="setSurgerySeg('surgeries')">Surgeries</button>
       <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
       <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
+      <button data-seg="spo2" onclick="setSurgerySeg('spo2')">SpO₂ (optional)</button>
       <button data-seg="documents" onclick="setSurgerySeg('documents')">Docs</button>
       <button data-seg="careteam" onclick="setSurgerySeg('careteam')">Care team</button>
     </div>
@@ -480,6 +480,18 @@
       <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openAllergyModal()">+ Log an allergy</button>
       <div class="card">
         <div id="allergyList"><div class="empty"><span class="eicon">⚠️</span>No allergies logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-spo2" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openOxygenModal()"><span class="qicon">🩸</span>+ Log SpO₂</button>
+      <p style="font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;">Optional — oxygen saturation isn't required for tracking your stenosis, but it's here if your care team wants it recorded alongside surgeries and treatments.</p>
+      <div class="card">
+        <div class="row" style="margin-bottom:10px;">
+          <h2>Recent readings</h2>
+          <button class="btn btn-sm btn-outline" onclick="switchTab('oxygen')">View trend</button>
+        </div>
+        <div id="medSpo2List"><div class="empty"><span class="eicon">🩸</span>No readings yet.</div></div>
       </div>
     </div>
 
@@ -607,6 +619,7 @@ function setSurgerySeg(seg){
   document.getElementById('seg-surgeries').style.display = seg==='surgeries' ? 'block':'none';
   document.getElementById('seg-treatments').style.display = seg==='treatments' ? 'block':'none';
   document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
+  document.getElementById('seg-spo2').style.display = seg==='spo2' ? 'block':'none';
   document.getElementById('seg-documents').style.display = seg==='documents' ? 'block':'none';
   document.getElementById('seg-careteam').style.display = seg==='careteam' ? 'block':'none';
 }
@@ -1427,7 +1440,7 @@ function renderToday(){
   document.getElementById('todayBanners').innerHTML = banners.join('');
 
   const latest = state.peakFlow[state.peakFlow.length-1];
-  const max = state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null;
+  const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
 
@@ -1469,7 +1482,7 @@ function renderToday(){
 }
 
 function renderPeakFlowTab(){
-  const max = state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null;
+  const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   const latest = state.peakFlow[state.peakFlow.length-1];
   document.getElementById('pfMax').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('pfLatest').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
@@ -1549,6 +1562,23 @@ function renderOxygenTab(){
         </div>
         ${r.legacy ? '' : `<button class="li-del" onclick="deleteOxygen('${r.id}')" aria-label="Delete">✕</button>`}
       </div>`).join('');
+  }
+
+  const medListEl = document.getElementById('medSpo2List');
+  if(medListEl){
+    if(!readings.length){
+      medListEl.innerHTML = `<div class="empty"><span class="eicon">🩸</span>No readings yet.</div>`;
+    }else{
+      medListEl.innerHTML = [...readings].reverse().slice(0,5).map(r=>`
+        <div class="list-item">
+          <div class="li-main">
+            <div class="li-date">${fmtDateTime(r.date)}</div>
+            <div class="li-title" style="${r.value<92?'color:var(--sev4);':''}">${r.value}%</div>
+            ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
+          </div>
+          ${r.legacy ? '' : `<button class="li-del" onclick="deleteOxygen('${r.id}')" aria-label="Delete">✕</button>`}
+        </div>`).join('');
+    }
   }
 }
 
@@ -1677,7 +1707,7 @@ function openSettings(){
     <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
 
     <h2 style="margin-bottom:8px;">Max peak flow</h2>
-    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Your personal best, or a value given by your care team. Used to show each peak flow reading as a % of max — stored on this device, never shared.</p>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow, or a value given by your care team. This won't be calculated for you — shown as your "Personal best" on the Today and Peak flow tabs, and used to show each reading as a % of max. Stored on this device, never shared.</p>
     <div class="field">
       <label class="field-label">Max peak flow (L/min)</label>
       <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
