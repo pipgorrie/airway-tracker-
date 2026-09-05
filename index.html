@@ -358,7 +358,7 @@
 
     <div class="card" id="pfPercentCard">
       <div class="row" style="margin-bottom:10px;">
-        <h2>% of max</h2>
+        <h2>% of personal best</h2>
       </div>
       <div id="pfPercentBody"></div>
     </div>
@@ -1495,24 +1495,24 @@ function renderPeakFlowTab(){
   const pctBody = document.getElementById('pfPercentBody');
   if(!maxPF){
     pctBody.innerHTML = `
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your max peak flow (personal best, or a value given by your care team) in Settings to see each reading as a % of that.</p>
-      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add max peak flow</button>`;
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your personal best peak flow (or a value given by your care team) in Settings to see each reading as a % of that.</p>
+      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add personal best peak flow</button>`;
   }else if(!state.peakFlow.length){
-    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a peak flow reading to see your % of max.</div>`;
+    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a peak flow reading to see your % of personal best.</div>`;
   }else{
     const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
     const latestPct = withPct[withPct.length-1].pct;
     const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
     pctBody.innerHTML = `
       <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span></div>
-      <div class="stat-label" style="margin-bottom:14px;">Latest, vs. max ${maxPF} L/min</div>
+      <div class="stat-label" style="margin-bottom:14px;">Latest, vs. personal best ${maxPF} L/min</div>
       <div class="chart-wrap"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
       <div class="chart-legend">
-        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of max</span>
+        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 50%</span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
-        % of max compares each reading to the max peak flow you entered in Settings — update that value any time your baseline changes.
+        % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, threshold:50});
   }
@@ -1527,7 +1527,7 @@ function renderPeakFlowTab(){
       <div class="list-item">
         <div class="li-main">
           <div class="li-date">${fmtDateTime(r.date)}</div>
-          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of max`:''}</div>
+          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}</div>
           ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
         </div>
         <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
@@ -1706,7 +1706,7 @@ function openSettings(){
     <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
 
     <h2 style="margin-bottom:8px;">Max peak flow</h2>
-    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow, or a value given by your care team. This won't be calculated for you — shown as your "Personal best" on the Today and Peak flow tabs, and used to show each reading as a % of max. Stored on this device, never shared.</p>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow, or a value given by your care team. This won't be calculated for you — shown as your "Personal best" on the Today and Peak flow tabs, and used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
     <div class="field">
       <label class="field-label">Max peak flow (L/min)</label>
       <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
