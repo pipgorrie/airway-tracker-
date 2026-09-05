@@ -132,7 +132,7 @@
   .btn-row{display:flex;gap:10px;}
   .btn-row .btn{flex:1;}
 
-  .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .quick-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:14px;}
   .quick-actions .btn{padding:16px 8px;flex-direction:column;font-size:12.5px;gap:6px;}
   .quick-actions .qicon{font-size:20px;}
 
@@ -285,7 +285,6 @@
 
     <div class="quick-actions">
       <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log peak flow</button>
-      <button class="btn btn-ghost" onclick="openSymptomModal()"><span class="qicon">📝</span>Log symptoms</button>
     </div>
 
     <div class="card">
@@ -365,27 +364,18 @@
 
     <div class="card">
       <div class="row" style="margin-bottom:2px;">
-        <h2>Weekly reminder</h2>
+        <h2>Daily reminder</h2>
         <label class="switch">
           <input type="checkbox" id="reminderToggle" onchange="toggleReminder()" style="width:auto;accent-color:var(--primary);transform:scale(1.3);">
         </label>
       </div>
       <p style="font-size:13px;color:var(--ink-soft);margin-top:6px;">
-        A steady weekly reading is more useful than daily noise. We suggest <strong>Sunday nights around 8:00pm</strong> — after the day has settled, before the week starts.
+        A steady daily reading is more useful than occasional spot-checks.
       </p>
       <div id="reminderControls" style="margin-top:12px;display:none;">
-        <div class="grid2">
-          <div class="field" style="margin-bottom:0;">
-            <label class="field-label">Day</label>
-            <select id="reminderDay" onchange="saveReminderSettings()">
-              <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-              <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-            </select>
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label class="field-label">Time</label>
-            <input type="time" id="reminderTime" value="20:00" onchange="saveReminderSettings()">
-          </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Time</label>
+          <input type="time" id="reminderTime" value="20:00" onchange="saveReminderSettings()">
         </div>
         <button class="btn btn-outline" style="margin-top:12px;" onclick="downloadReminderICS()">Add to calendar (.ics)</button>
       </div>
@@ -457,6 +447,7 @@
       <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
       <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
       <button data-seg="spo2" onclick="setSurgerySeg('spo2')">SpO₂ (optional)</button>
+      <button data-seg="symptoms" onclick="setSurgerySeg('symptoms')">Symptoms</button>
       <button data-seg="documents" onclick="setSurgerySeg('documents')">Docs</button>
       <button data-seg="careteam" onclick="setSurgerySeg('careteam')">Care team</button>
     </div>
@@ -494,6 +485,17 @@
       </div>
     </div>
 
+    <div id="seg-symptoms" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openSymptomModal()"><span class="qicon">📝</span>+ Log symptoms</button>
+      <div class="card">
+        <div class="row" style="margin-bottom:10px;">
+          <h2>Recent logs</h2>
+          <button class="btn btn-sm btn-outline" onclick="switchTab('symptoms')">View trend</button>
+        </div>
+        <div id="medSymptomList"><div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div></div>
+      </div>
+    </div>
+
     <div id="seg-documents" style="display:none;">
       <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openDocumentModal()">+ Add a photo or document</button>
       <p style="font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;">Photograph paperwork, screenshot an email, or upload a PDF — discharge summaries, prescriptions, referral letters, correspondence with your care team.</p>
@@ -525,7 +527,7 @@
 const STORE_KEY = 'stenosis-tracker-state-v1';
 function defaultSettings(){
   return {
-    reminderEnabled:false, reminderDay:0, reminderTime:'20:00', unit:'L/min',
+    reminderEnabled:false, reminderTime:'20:00', unit:'L/min',
     maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
     fixedSymptomLabels: {
       cough:'Coughing',
@@ -619,6 +621,7 @@ function setSurgerySeg(seg){
   document.getElementById('seg-treatments').style.display = seg==='treatments' ? 'block':'none';
   document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
   document.getElementById('seg-spo2').style.display = seg==='spo2' ? 'block':'none';
+  document.getElementById('seg-symptoms').style.display = seg==='symptoms' ? 'block':'none';
   document.getElementById('seg-documents').style.display = seg==='documents' ? 'block':'none';
   document.getElementById('seg-careteam').style.display = seg==='careteam' ? 'block':'none';
 }
@@ -1281,13 +1284,10 @@ function toggleReminder(){
   saveState(); renderAll();
 }
 function saveReminderSettings(){
-  state.settings.reminderDay = parseInt(document.getElementById('reminderDay').value);
   state.settings.reminderTime = document.getElementById('reminderTime').value;
   saveState(); renderAll();
 }
 function downloadReminderICS(){
-  const days=['SU','MO','TU','WE','TH','FR','SA'];
-  const day = days[state.settings.reminderDay];
   const [hh,mm] = state.settings.reminderTime.split(':');
   const now = new Date();
   const dtStart = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}T${hh}${mm}00`;
@@ -1297,9 +1297,9 @@ PRODID:-//Airway Tracker//EN
 BEGIN:VEVENT
 UID:${uid()}@airway-tracker
 DTSTART:${dtStart}
-RRULE:FREQ=WEEKLY;BYDAY=${day}
+RRULE:FREQ=DAILY
 SUMMARY:Log peak flow — Airway Tracker
-DESCRIPTION:Weekly peak flow reading. Same time each week keeps the trend meaningful.
+DESCRIPTION:Daily peak flow reading. Same time each day keeps the trend meaningful.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Peak flow reminder
@@ -1391,7 +1391,6 @@ function renderAll(){
   renderCareTeamTab();
   document.getElementById('reminderToggle').checked = !!state.settings.reminderEnabled;
   document.getElementById('reminderControls').style.display = state.settings.reminderEnabled ? 'block':'none';
-  document.getElementById('reminderDay').value = state.settings.reminderDay;
   document.getElementById('reminderTime').value = state.settings.reminderTime;
 }
 
@@ -1419,18 +1418,17 @@ function renderToday(){
         </div>
       </div>`);
   }
-  // Weekly reminder banner
+  // Daily reminder banner
   if(state.settings.reminderEnabled){
-    const now = new Date();
     const lastPF = state.peakFlow[state.peakFlow.length-1];
     const daysSince = lastPF ? (Date.now()-new Date(lastPF.date).getTime())/86400000 : 999;
-    if(now.getDay()===state.settings.reminderDay && daysSince>=1){
+    if(daysSince>=1){
       banners.push(`
         <div class="banner reminder">
           <div class="banner-icon">⏰</div>
           <div>
             <div class="banner-title">Peak flow reminder</div>
-            <div class="banner-body">It's your usual day to log a reading — aim for around ${state.settings.reminderTime}.</div>
+            <div class="banner-body">You haven't logged a reading today — aim for around ${state.settings.reminderTime}.</div>
             <button class="link" onclick="openPeakFlowModal()">Log now</button>
           </div>
         </div>`);
@@ -1639,6 +1637,31 @@ function renderSymptomsTab(){
         <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
       </div>`;
     }).join('');
+  }
+
+  const medListEl = document.getElementById('medSymptomList');
+  if(medListEl){
+    if(!state.symptoms.length){
+      medListEl.innerHTML = `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
+    }else{
+      medListEl.innerHTML = [...state.symptoms].reverse().slice(0,5).map(s=>{
+        const customText = (s.custom||[]).map(c=>`${escapeHtml(c.label)} ${c.value}`).join(' · ');
+        const coreText = [
+          typeof s.cough==='number' ? `${state.settings.fixedSymptomLabels.cough} ${s.cough}`:null,
+          typeof s.mucus==='number' ? `${state.settings.fixedSymptomLabels.mucus} ${s.mucus}`:null,
+          typeof s.stridor==='number' ? `${state.settings.fixedSymptomLabels.stridor} ${s.stridor}`:null,
+          typeof s.voice==='number' ? `${state.settings.fixedSymptomLabels.voice} ${s.voice}`:null
+        ].filter(Boolean).join(' · ');
+        return `
+        <div class="list-item">
+          <div class="li-main">
+            <div class="li-date">${fmtDate(s.date)}</div>
+            <div class="li-notes" style="margin-top:5px;">${[coreText,customText].filter(Boolean).join(' · ')}</div>
+          </div>
+          <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -1902,7 +1925,7 @@ function exportDataPDF(){
   setTimeout(()=>win.print(), 300);
 }
 function clearData(){
-  state = {peakFlow:[],symptoms:[],surgeries:[],treatments:[],settings:{reminderEnabled:false,reminderDay:0,reminderTime:'20:00',unit:'L/min'}};
+  state = {peakFlow:[],symptoms:[],surgeries:[],treatments:[],settings:{reminderEnabled:false,reminderTime:'20:00',unit:'L/min'}};
   saveState(); closeModal(); renderAll(); toast('All data cleared');
 }
 
