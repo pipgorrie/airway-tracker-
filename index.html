@@ -814,6 +814,23 @@ function openSurgeryModal(){
       </div>
     </div>
     <div class="field"><label class="field-label">Date</label><input type="date" id="sgDate" value="${now.toISOString().slice(0,10)}"></div>
+    <div class="field">
+      <label class="field-label">Surgeon's estimate of airway openness (optional)</label>
+      <div class="grid2">
+        <div>
+          <label class="field-label" style="font-weight:400;">Before surgery (%)</label>
+          <input type="number" inputmode="numeric" id="sgOpenBefore" placeholder="e.g. 30" min="0" max="100">
+        </div>
+        <div>
+          <label class="field-label" style="font-weight:400;">After surgery (%)</label>
+          <input type="number" inputmode="numeric" id="sgOpenAfter" placeholder="e.g. 85" min="0" max="100">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin-top:10px;">
+        <input type="checkbox" id="sgComparePEF" style="width:auto;accent-color:var(--primary);transform:scale(1.15);">
+        Compare against PEF %
+      </label>
+    </div>
     <div class="field"><label class="field-label">Notes (optional)</label><textarea id="sgNotes" placeholder="Surgeon, hospital, how it went..."></textarea></div>
     <button class="btn btn-primary" onclick="saveSurgery()">Save surgery</button>
   `);
@@ -822,12 +839,24 @@ function saveSurgery(){
   const type = document.getElementById('sgType').value.trim();
   const location = Array.from(document.querySelectorAll('.sg-location-check:checked')).map(el=>el.value);
   const date = document.getElementById('sgDate').value;
+  const openBeforeRaw = document.getElementById('sgOpenBefore').value;
+  const openAfterRaw = document.getElementById('sgOpenAfter').value;
+  const openBefore = openBeforeRaw==='' ? null : Math.max(0,Math.min(100,parseFloat(openBeforeRaw)));
+  const openAfter = openAfterRaw==='' ? null : Math.max(0,Math.min(100,parseFloat(openAfterRaw)));
+  const comparePEF = document.getElementById('sgComparePEF').checked;
   const notes = document.getElementById('sgNotes').value.trim();
   if(!type){ toast('Add a procedure name'); return; }
   const iso = new Date(date+'T09:00').toISOString();
-  state.surgeries.push({id:uid(), date:iso, type, location, notes});
+  state.surgeries.push({id:uid(), date:iso, type, location, notes, openBefore, openAfter, comparePEF});
   state.surgeries.sort((a,b)=>new Date(a.date)-new Date(b.date));
   saveState(); closeModal(); renderAll(); toast('Surgery logged');
+}
+// finds the PEF reading closest to the given date, used to compare against a surgeon's airway-openness estimate
+function nearestPEFPercent(dateIso){
+  if(!state.settings.maxPeakFlow || !state.peakFlow.length) return null;
+  const target = new Date(dateIso).getTime();
+  const nearest = [...state.peakFlow].sort((a,b)=>Math.abs(new Date(a.date)-target) - Math.abs(new Date(b.date)-target))[0];
+  return Math.round((nearest.value/state.settings.maxPeakFlow)*100);
 }
 function formatSurgeryLocation(location){
   if(Array.isArray(location)) return location.join(', ');
@@ -1650,12 +1679,19 @@ function renderSurgeryTab(){
   }else{
     listEl.innerHTML = [...state.surgeries].reverse().map(s=>{
       const locText = formatSurgeryLocation(s.location);
+      const hasOpenness = s.openBefore!=null || s.openAfter!=null;
+      const opennessText = hasOpenness
+        ? `Airway openness: ${s.openBefore!=null?s.openBefore+'%':'—'} → ${s.openAfter!=null?s.openAfter+'%':'—'}`
+        : '';
+      const pefPct = s.comparePEF ? nearestPEFPercent(s.date) : null;
       return `
       <div class="list-item">
         <div class="li-main">
           <div class="li-date">${fmtDate(s.date)}</div>
           <div class="li-title">${escapeHtml(s.type)}</div>
           ${locText?`<div style="font-size:12.5px;color:var(--primary-dark);font-weight:600;margin-top:2px;">${escapeHtml(locText)}</div>`:''}
+          ${opennessText?`<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${opennessText}</div>`:''}
+          ${pefPct!=null?`<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">PEF around this time: ${pefPct}% of personal best</div>`:''}
           ${s.notes?`<div class="li-notes">${escapeHtml(s.notes)}</div>`:''}
         </div>
         <button class="li-del" onclick="deleteSurgery('${s.id}')" aria-label="Delete">✕</button>
