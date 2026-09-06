@@ -284,12 +284,12 @@
     <div id="todayBanners"></div>
 
     <div class="quick-actions">
-      <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log peak flow</button>
+      <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log PEF</button>
     </div>
 
     <div class="card">
       <div class="row" style="margin-bottom:10px;">
-        <h2>Peak flow</h2>
+        <h2>PEF</h2>
         <button class="btn btn-sm btn-outline" onclick="switchTab('peakflow')">View trend</button>
       </div>
       <div class="grid2">
@@ -341,7 +341,7 @@
       <div class="grid2" style="margin-bottom:14px;">
         <div>
           <div class="stat-big" id="pfMax">—<span class="stat-unit">L/min</span></div>
-          <div class="stat-label">Personal best peak flow</div>
+          <div class="stat-label">Personal best PEF</div>
         </div>
         <div>
           <div class="stat-big" id="pfLatest">—<span class="stat-unit">L/min</span></div>
@@ -350,7 +350,7 @@
       </div>
       <div class="chart-wrap"><svg class="chart" id="pfChart" viewBox="0 0 340 160"></svg></div>
       <div class="chart-legend">
-        <span><span class="legend-dot" style="background:var(--primary);"></span>Peak flow</span>
+        <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
         <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
       </div>
     </div>
@@ -364,7 +364,7 @@
 
     <div class="card">
       <h2 style="margin-bottom:6px;">History</h2>
-      <div id="pfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first peak flow above.</div></div>
+      <div id="pfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
     </div>
   </section>
 
@@ -493,7 +493,7 @@
 
 <nav class="tabbar">
   <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="ticon">🏠</span>Today</button>
-  <button class="tab-btn" data-tab="peakflow" onclick="switchTab('peakflow')"><span class="ticon">📈</span>Peak flow</button>
+  <button class="tab-btn" data-tab="peakflow" onclick="switchTab('peakflow')"><span class="ticon">📈</span>PEF</button>
   <button class="tab-btn" data-tab="oxygen" onclick="switchTab('oxygen')"><span class="ticon">🩸</span>SpO₂</button>
   <button class="tab-btn" data-tab="symptoms" onclick="switchTab('symptoms')"><span class="ticon">📝</span>Symptoms</button>
   <button class="tab-btn" data-tab="surgery" onclick="switchTab('surgery')"><span class="ticon">🏥</span>Medical</button>
@@ -621,7 +621,7 @@ function openPeakFlowModal(){
   const dateVal = now.toISOString().slice(0,10);
   const timeVal = now.toTimeString().slice(0,5);
   renderModal(`
-    <div class="modal-head"><h2>Log peak flow</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h2>Log peak expiratory flow (PEF)</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="field">
       <label class="field-label">Reading (L/min)</label>
       <input type="number" inputmode="numeric" id="pfValue" placeholder="e.g. 320" autofocus>
@@ -643,7 +643,7 @@ function savePeakFlow(){
   const iso = new Date(date+'T'+time).toISOString();
   state.peakFlow.push({id:uid(), date:iso, value, note});
   state.peakFlow.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  saveState(); closeModal(); renderAll(); toast('Peak flow saved');
+  saveState(); closeModal(); renderAll(); toast('PEF saved');
 }
 function deletePeakFlow(id){
   state.peakFlow = state.peakFlow.filter(r=>r.id!==id);
@@ -1279,11 +1279,11 @@ BEGIN:VEVENT
 UID:${uid()}@airway-tracker
 DTSTART:${dtStart}
 RRULE:FREQ=DAILY
-SUMMARY:Log peak flow — Airway Tracker
-DESCRIPTION:Daily peak flow reading. Same time each day keeps the trend meaningful.
+SUMMARY:Log peak expiratory flow (PEF) — Airway Tracker
+DESCRIPTION:Daily peak expiratory flow (PEF) reading. Same time each day keeps the trend meaningful.
 BEGIN:VALARM
 ACTION:DISPLAY
-DESCRIPTION:Peak flow reminder
+DESCRIPTION:PEF reminder
 TRIGGER:-PT0M
 END:VALARM
 END:VEVENT
@@ -1390,9 +1390,9 @@ function renderToday(){
         <div>
           <div class="banner-title">${isSurgeryDay ? "Surgery day" : "Day "+dayNum+" post-op"} — ${recentSurgery.type}</div>
           <div class="banner-body">${isSurgeryDay
-            ? "Take a peak flow reading today as your post-surgery baseline, if your care team has approved it."
+            ? "Take a peak expiratory flow (PEF) reading today as your post-surgery baseline, if your care team has approved it."
             : "Rest and recover. Keep activity light and let your airway heal — log symptoms if anything feels off."}</div>
-          <button class="link" onclick="openPeakFlowModal()">Log peak flow</button>
+          <button class="link" onclick="openPeakFlowModal()">Log PEF</button>
         </div>
       </div>`);
   }
@@ -1405,7 +1405,7 @@ function renderToday(){
         <div class="banner reminder">
           <div class="banner-icon">⏰</div>
           <div>
-            <div class="banner-title">Peak flow reminder</div>
+            <div class="banner-title">PEF reminder</div>
             <div class="banner-body">You haven't logged a reading today — aim for around ${state.settings.reminderTime}.</div>
             <button class="link" onclick="openPeakFlowModal()">Log now</button>
           </div>
@@ -1442,7 +1442,7 @@ function renderToday(){
 
   // recent activity feed (last 4 across everything)
   const combined = [
-    ...state.peakFlow.map(r=>({date:r.date, text:`Peak flow logged — ${r.value} L/min`})),
+    ...state.peakFlow.map(r=>({date:r.date, text:`PEF logged — ${r.value} L/min`})),
     ...state.oxygen.map(r=>({date:r.date, text:`SpO₂ logged — ${r.value}%`})),
     ...state.surgeries.map(r=>({date:r.date, text:`Surgery: ${r.type}`})),
     ...state.treatments.map(r=>({date:r.start+'T00:00', text:`${r.kind==='medication'?'Started medication':'Started diet'}: ${r.name}`})),
@@ -1471,10 +1471,10 @@ function renderPeakFlowTab(){
   const pctBody = document.getElementById('pfPercentBody');
   if(!maxPF){
     pctBody.innerHTML = `
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your personal best peak flow (or a value given by your care team) in Settings to see each reading as a % of that.</p>
-      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add personal best peak flow</button>`;
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your personal best peak expiratory flow (PEF) (or a value given by your care team) in Settings to see each reading as a % of that.</p>
+      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add personal best PEF</button>`;
   }else if(!state.peakFlow.length){
-    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a peak flow reading to see your % of personal best.</div>`;
+    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a PEF reading to see your % of personal best.</div>`;
   }else{
     const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
     const latestPct = withPct[withPct.length-1].pct;
@@ -1495,7 +1495,7 @@ function renderPeakFlowTab(){
 
   const listEl = document.getElementById('pfList');
   if(!state.peakFlow.length){
-    listEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first peak flow above.</div>`;
+    listEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
   }else{
     listEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
@@ -1706,10 +1706,10 @@ function openSettings(){
   renderModal(`
     <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
 
-    <h2 style="margin-bottom:8px;">Max peak flow</h2>
-    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow. This will be used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
+    <h2 style="margin-bottom:8px;">Max PEF</h2>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak expiratory flow (PEF). This will be used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
     <div class="field">
-      <label class="field-label">Max peak flow (L/min)</label>
+      <label class="field-label">Max PEF (L/min)</label>
       <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
     </div>
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
@@ -1724,16 +1724,16 @@ function openSettings(){
     <div class="disclaimer" style="padding-top:18px;">
       Airway is a personal tracking tool, not a medical device. It doesn't diagnose or treat any condition.
       Always follow your ENT or pulmonologist's guidance, and seek urgent care for sudden or severe breathing difficulty.
-      Your tracking data (peak flow, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared. Feedback you submit is shared and visible to other people using this app.
+      Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared. Feedback you submit is shared and visible to other people using this app.
     </div>
   `);
 }
 function saveMaxPeakFlow(){
   const raw = document.getElementById('maxPFInput').value;
   const value = raw!=='' ? parseFloat(raw) : null;
-  if(value!==null && (isNaN(value) || value<=0)){ toast('Enter a valid max peak flow'); return; }
+  if(value!==null && (isNaN(value) || value<=0)){ toast('Enter a valid max PEF'); return; }
   state.settings.maxPeakFlow = value;
-  saveState(); closeModal(); renderAll(); toast('Max peak flow saved');
+  saveState(); closeModal(); renderAll(); toast('Max PEF saved');
 }
 
 /* ---- Feedback ---- */
@@ -1847,7 +1847,7 @@ function csvSection(title, headers, rows){
 }
 function exportDataCSV(){
   const sections = [
-    csvSection('Peak flow', ['Date','Value (L/min)','Note'],
+    csvSection('PEF', ['Date','Value (L/min)','Note'],
       state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
     csvSection('SpO2', ['Date','Value (%)','Note'],
       getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
@@ -1887,7 +1887,7 @@ function exportDataPDF(){
   </style></head><body>
     <h1>Airway — Stenosis Tracker export</h1>
     <div class="sub">Generated ${fmtDate(todayISO())}</div>
-    ${table('Peak flow', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
+    ${table('PEF', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
     ${table('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
     ${table('Symptoms', ['Date','Cough','Mucus','Stridor','Voice','Custom activities'], state.symptoms.map(s=>[fmtDate(s.date), s.cough, s.mucus, s.stridor, s.voice, (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')]))}
     ${table('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
