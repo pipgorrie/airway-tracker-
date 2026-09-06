@@ -1729,7 +1729,7 @@ function openSettings(){
     <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
 
     <h2 style="margin-bottom:8px;">Max peak flow</h2>
-    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow, or a value given by your care team. This won't be calculated for you — shown as your "Personal best" on the Today and Peak flow tabs, and used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak flow. This will be used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
     <div class="field">
       <label class="field-label">Max peak flow (L/min)</label>
       <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
