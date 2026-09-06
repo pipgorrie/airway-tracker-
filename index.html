@@ -363,25 +363,6 @@
     </div>
 
     <div class="card">
-      <div class="row" style="margin-bottom:2px;">
-        <h2>Daily reminder</h2>
-        <label class="switch">
-          <input type="checkbox" id="reminderToggle" onchange="toggleReminder()" style="width:auto;accent-color:var(--primary);transform:scale(1.3);">
-        </label>
-      </div>
-      <p style="font-size:13px;color:var(--ink-soft);margin-top:6px;">
-        A steady daily reading is more useful than occasional spot-checks.
-      </p>
-      <div id="reminderControls" style="margin-top:12px;display:none;">
-        <div class="field" style="margin-bottom:0;">
-          <label class="field-label">Time</label>
-          <input type="time" id="reminderTime" value="20:00" onchange="saveReminderSettings()">
-        </div>
-        <button class="btn btn-outline" style="margin-top:12px;" onclick="downloadReminderICS()">Add to calendar (.ics)</button>
-      </div>
-    </div>
-
-    <div class="card">
       <h2 style="margin-bottom:6px;">History</h2>
       <div id="pfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first peak flow above.</div></div>
     </div>
@@ -1389,9 +1370,6 @@ function renderAll(){
   renderAllergyTab();
   renderDocumentsTab();
   renderCareTeamTab();
-  document.getElementById('reminderToggle').checked = !!state.settings.reminderEnabled;
-  document.getElementById('reminderControls').style.display = state.settings.reminderEnabled ? 'block':'none';
-  document.getElementById('reminderTime').value = state.settings.reminderTime;
 }
 
 function isWithinDays(iso, days){
