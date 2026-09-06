@@ -306,23 +306,6 @@
 
     <div class="card">
       <div class="row" style="margin-bottom:10px;">
-        <h2>SpO₂</h2>
-        <button class="btn btn-sm btn-outline" onclick="switchTab('oxygen')">View trend</button>
-      </div>
-      <div class="grid2">
-        <div>
-          <div class="stat-big" id="todayLatestO2">—</div>
-          <div class="stat-label">Latest reading</div>
-        </div>
-        <div>
-          <div class="stat-big" id="todayLowO2" style="color:var(--amber);">—</div>
-          <div class="stat-label">Lowest recorded</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="row" style="margin-bottom:10px;">
         <h2>Symptoms</h2>
         <button class="btn btn-sm btn-outline" onclick="switchTab('symptoms')">View trend</button>
       </div>
@@ -348,7 +331,9 @@
           <div class="stat-label">Latest reading</div>
         </div>
       </div>
-      <div class="chart-wrap"><svg class="chart" id="pfChart" viewBox="0 0 340 160"></svg></div>
+      <div id="pfViewToggle"></div>
+      <div id="pfChartWrap" class="chart-wrap"><svg class="chart" id="pfChart" viewBox="0 0 340 160"></svg></div>
+      <div id="pfTableWrap" style="display:none;"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
         <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
@@ -381,7 +366,9 @@
           <div class="stat-label">Lowest recorded</div>
         </div>
       </div>
-      <div class="chart-wrap"><svg class="chart" id="oxChart" viewBox="0 0 340 160"></svg></div>
+      <div id="oxViewToggle"></div>
+      <div id="oxChartWrap" class="chart-wrap"><svg class="chart" id="oxChart" viewBox="0 0 340 160"></svg></div>
+      <div id="oxTableWrap" style="display:none;"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:#5C8A9E;"></span>SpO₂ %</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 92%</span>
@@ -400,6 +387,7 @@
   <!-- SYMPTOMS -->
   <section class="view" id="view-symptoms">
     <div class="card">
+      <div id="symViewToggle"></div>
       <div id="symChartWrap" class="chart-wrap"><svg class="chart" id="symChart" viewBox="0 0 340 160"></svg></div>
       <div id="symTableWrap" style="display:none;overflow-x:auto;"></div>
       <div class="chart-legend" id="symLegend"></div>
@@ -494,8 +482,6 @@
 <nav class="tabbar">
   <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="ticon">🏠</span>Today</button>
   <button class="tab-btn" data-tab="peakflow" onclick="switchTab('peakflow')"><span class="ticon">📈</span>PEF</button>
-  <button class="tab-btn" data-tab="oxygen" onclick="switchTab('oxygen')"><span class="ticon">🩸</span>SpO₂</button>
-  <button class="tab-btn" data-tab="symptoms" onclick="switchTab('symptoms')"><span class="ticon">📝</span>Symptoms</button>
   <button class="tab-btn" data-tab="surgery" onclick="switchTab('surgery')"><span class="ticon">🏥</span>Medical</button>
 </nav>
 
@@ -509,17 +495,17 @@ const STORE_KEY = 'stenosis-tracker-state-v1';
 function defaultSettings(){
   return {
     reminderEnabled:false, reminderTime:'20:00', unit:'L/min',
+    chartView: {pf:'graph', pfPct:'graph', oxygen:'graph', symptoms:'graph'}, // 'graph' or 'table', per chart
     maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
-    fixedSymptomLabels: {
-      cough:'Coughing',
-      mucus:'Mucus / needing to clear throat',
-      stridor:'Stridor (noisy / high-pitched breathing)',
-      voice:'Voice change / hoarseness'
-    },
+    // unlimited, user-editable list of symptoms/activities to rate each time symptoms are logged
     customSymptoms: [
-      {id:'custom1', label:'Difficulty making the bed'},
-      {id:'custom2', label:'Difficulty walking up stairs'},
-      {id:'custom3', label:'Difficulty getting dressed'}
+      {id:'symp1', label:'Stridor / noisy breathing'},
+      {id:'symp2', label:'Breathlessness on exertion'},
+      {id:'symp3', label:'Breathlessness at rest'},
+      {id:'symp4', label:'Cough / throat clearing'},
+      {id:'symp5', label:'Voice changes'},
+      {id:'symp6', label:'Difficulty speaking'},
+      {id:'symp7', label:'Fatigue'}
     ]
   };
 }
@@ -551,10 +537,9 @@ async function loadState(){
     if(res && res.value){
       const parsed = JSON.parse(res.value);
       state = Object.assign(state, parsed);
-      // merge settings so new fields (like customSymptoms, fixedSymptomLabels) survive loading older saved data
+      // merge settings so new fields (like customSymptoms) survive loading older saved data
       const defaults = defaultSettings();
       state.settings = Object.assign(defaults, parsed.settings||{});
-      state.settings.fixedSymptomLabels = Object.assign(defaults.fixedSymptomLabels, (parsed.settings&&parsed.settings.fixedSymptomLabels)||{});
       const careDefaults = defaultCareInfo();
       const parsedCare = parsed.careInfo||{};
       state.careInfo = Object.assign(careDefaults, parsedCare);
@@ -691,27 +676,19 @@ function getCombinedOxygenReadings(){
 }
 
 /* ---- Symptom modal ---- */
-// Fixed core symptoms (stable over time, safe to chart)
-const SEV_CAPTIONS = {
-  cough:['No cough','Brief, a couple of short spells','Several spells through the day','Frequent — interferes with activities','Near-constant, distressing'],
-  mucus:['None / nothing to clear','A little, clear throat occasionally','Regular need to clear or cough up','Frequent, thick — clearing disrupts activities','Constant, heavy — hard to keep airway clear'],
-  stridor:['No noisy breathing','Faint, only with heavy exertion','Noticeable with moderate activity','Audible with light activity or sometimes at rest','Constant, loud — obvious effort to breathe at rest'],
-  voice:['Normal voice','Slightly rough or tires by day\'s end','Noticeably hoarse or strained, others may notice','Voice tires quickly, effortful to talk for long','Very hoarse, weak, or hard to be heard most of the time']
-};
-const FIXED_SYMPTOMS = ['cough','mucus','stridor','voice'];
-const MIN_CUSTOM = 0, MAX_CUSTOM = 5;
+// generic severity captions, used for every symptom/activity — the list itself is unlimited and user-editable
+const GENERIC_SEV_CAPTIONS = ['No difficulty','Slightly more effort than usual','Needs a short rest partway through','Needs to stop and recover repeatedly','Cannot do it / needs help'];
+const SYMPTOM_COLORS = ['#0F6E68','#5C8A9E','#C97A3D','#B65C8A','#7B61B3','#3F8F5F','#C4574B','#8A6D3B'];
+function symptomColor(index){ return SYMPTOM_COLORS[index % SYMPTOM_COLORS.length]; }
 
 let symptomDraft = {};
 function openSymptomModal(){
-  symptomDraft = {cough:null, mucus:null, stridor:null, voice:null, custom:{}};
+  symptomDraft = {custom:{}};
   state.settings.customSymptoms.forEach(c=>{ symptomDraft.custom[c.id]=null; });
   const now = new Date();
   renderModal(`
     <div class="modal-head"><h2>Log symptoms</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">Rate each over the last 24 hours. 0 = none, 4 = severe. Tap any name to rename it.</p>
-    ${FIXED_SYMPTOMS.map(key=>sevBlock(key, state.settings.fixedSymptomLabels[key], {editable:true, removable:false, renameFn:'renameFixedSymptom'})).join('')}
-    <div style="border-top:1px solid var(--line);margin:16px 0 14px;"></div>
-    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:14px;">Your own activities.</p>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">Rate each over the last 24 hours. 0 = none, 4 = severe. Tap any name to rename it — add or remove as many as you'd like to track.</p>
     <div id="customSymptomBlocks">${renderCustomBlocks()}</div>
     <div class="row" style="margin-bottom:16px;" id="addCustomRow">${renderAddCustomButton()}</div>
     <div class="field"><label class="field-label">Date</label><input type="date" id="symDate" value="${now.toISOString().slice(0,10)}"></div>
@@ -719,15 +696,14 @@ function openSymptomModal(){
   `);
 }
 function renderCustomBlocks(){
-  return state.settings.customSymptoms.map(c=>sevBlock(c.id, c.label, {editable:true, removable: state.settings.customSymptoms.length>MIN_CUSTOM, renameFn:'renameCustomSymptom'})).join('');
+  return state.settings.customSymptoms.map(c=>sevBlock(c.id, c.label, {editable:true, removable:true, renameFn:'renameCustomSymptom'})).join('');
 }
 function refreshCustomBlocks(){
   document.getElementById('customSymptomBlocks').innerHTML = renderCustomBlocks();
   document.getElementById('addCustomRow').innerHTML = renderAddCustomButton();
 }
 function renderAddCustomButton(){
-  const atMax = state.settings.customSymptoms.length>=MAX_CUSTOM;
-  return `<button type="button" class="btn btn-sm btn-outline" onclick="addCustomSymptomField()" ${atMax?'disabled style="opacity:.4;"':''}>+ Add another (${state.settings.customSymptoms.length}/${MAX_CUSTOM})</button>`;
+  return `<button type="button" class="btn btn-sm btn-outline" onclick="addCustomSymptomField()">+ Add another symptom</button>`;
 }
 function sevBlock(key,label,opts={}){
   const {editable=false, removable=false, renameFn=''} = opts;
@@ -746,30 +722,19 @@ function sevBlock(key,label,opts={}){
   </div>`;
 }
 function pickSev(key,val){
-  const isCustom = !SEV_CAPTIONS[key];
-  if(isCustom){ symptomDraft.custom[key]=val; } else { symptomDraft[key]=val; }
+  symptomDraft.custom[key]=val;
   document.querySelectorAll(`#sevpicker-${key} .sev-opt`).forEach(b=>{
     b.classList.toggle('active', parseInt(b.dataset.val)===val);
   });
-  document.getElementById(`sevcap-${key}`).textContent = isCustom
-    ? ['No difficulty','Slightly more effort than usual','Needs a short rest partway through','Needs to stop and recover repeatedly','Cannot do it / needs help'][val]
-    : SEV_CAPTIONS[key][val];
-}
-function renameFixedSymptom(key,newLabel){
-  newLabel = newLabel.trim();
-  if(!newLabel) return;
-  state.settings.fixedSymptomLabels[key] = newLabel;
-  saveState(); renderAll();
+  document.getElementById(`sevcap-${key}`).textContent = GENERIC_SEV_CAPTIONS[val];
 }
 function addCustomSymptomField(){
-  if(state.settings.customSymptoms.length>=MAX_CUSTOM){ toast(`You can track up to ${MAX_CUSTOM} extras`); return; }
   const id = 'custom'+uid();
-  state.settings.customSymptoms.push({id, label:'New activity'});
+  state.settings.customSymptoms.push({id, label:'New symptom'});
   symptomDraft.custom[id]=null;
   saveState(); refreshCustomBlocks();
 }
 function removeCustomSymptomField(id){
-  if(state.settings.customSymptoms.length<=MIN_CUSTOM){ toast(`Keep at least ${MIN_CUSTOM} extras`); return; }
   state.settings.customSymptoms = state.settings.customSymptoms.filter(c=>c.id!==id);
   delete symptomDraft.custom[id];
   saveState(); refreshCustomBlocks();
@@ -781,16 +746,16 @@ function renameCustomSymptom(id,newLabel){
   if(item){ item.label = newLabel; saveState(); renderAll(); }
 }
 function saveSymptom(){
-  const {cough,mucus,stridor,voice,custom} = symptomDraft;
+  const {custom} = symptomDraft;
   const customVals = Object.values(custom);
-  if([cough,mucus,stridor,voice].some(v=>v===null) || customVals.some(v=>v===null) || customVals.length<MIN_CUSTOM){
+  if(customVals.some(v=>v===null)){
     toast('Please rate every item'); return;
   }
   const date = document.getElementById('symDate').value;
   const iso = new Date(date+'T12:00').toISOString();
-  // snapshot custom labels at time of logging so history stays accurate even if renamed/removed later
+  // snapshot labels at time of logging so history stays accurate even if renamed/removed later
   const customSnapshot = state.settings.customSymptoms.map(c=>({id:c.id, label:c.label, value:custom[c.id]}));
-  state.symptoms.push({id:uid(), date:iso, cough, mucus, stridor, voice, custom:customSnapshot});
+  state.symptoms.push({id:uid(), date:iso, custom:customSnapshot});
   state.symptoms.sort((a,b)=>new Date(a.date)-new Date(b.date));
   saveState(); closeModal(); renderAll(); toast('Symptoms saved');
 }
@@ -1325,6 +1290,26 @@ END:VCALENDAR`;
   toast('Calendar file downloaded');
 }
 
+/* ============ CHART / TABLE VIEW TOGGLE ============ */
+function chartViewToggleHtml(chart){
+  const view = state.settings.chartView[chart] || 'graph';
+  const btn = (mode,label) => `<button type="button" onclick="setChartView('${chart}','${mode}')" style="border:none;background:${view===mode?'var(--surface)':'transparent'};color:var(--ink${view===mode?'':'-soft'});box-shadow:${view===mode?'0 1px 3px rgba(0,0,0,0.08)':'none'};padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;">${label}</button>`;
+  return `<div style="display:inline-flex;background:var(--surface-alt);border-radius:999px;padding:3px;margin-bottom:10px;">
+    ${btn('graph','📈 Graph')}${btn('table','▦ Table')}
+  </div>`;
+}
+function setChartView(chart, mode){
+  state.settings.chartView[chart] = mode;
+  saveState(); renderAll();
+}
+function simpleTable(headers, rows){
+  if(!rows.length) return `<div class="empty"><span class="eicon">📊</span>No data yet.</div>`;
+  return `<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;font-size:13px;">
+    <thead><tr>${headers.map(h=>`<th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">${escapeHtml(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td style="padding:6px 8px 6px 0;white-space:nowrap;">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
 /* ============ CHARTS (lightweight inline SVG) ============ */
 function buildLineChart(svgEl, series, opts={}){
   // series: [{points:[{x:Date,y:number}], color, markers:bool}]
@@ -1336,7 +1321,8 @@ function buildLineChart(svgEl, series, opts={}){
     svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8B9A9D" font-size="12" font-family="IBM Plex Sans">Not enough data yet</text>`;
     return;
   }
-  const xs = allPts.map(p=>p.x.getTime());
+  const markerTimes = (opts.markers||[]).map(m=>m.getTime());
+  const xs = allPts.map(p=>p.x.getTime()).concat(markerTimes);
   const ys = allPts.map(p=>p.y);
   let minX=Math.min(...xs), maxX=Math.max(...xs);
   if(minX===maxX){ minX-=86400000; maxX+=86400000; }
@@ -1401,6 +1387,13 @@ function renderAll(){
   renderCareTeamTab();
 }
 
+function isSurgeryDay(iso){
+  const d = new Date(iso);
+  return state.surgeries.some(s=>{
+    const sd = new Date(s.date);
+    return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && sd.getDate()===d.getDate();
+  });
+}
 function isWithinDays(iso, days){
   const diff = (Date.now()-new Date(iso).getTime())/86400000;
   return diff>=0 && diff<=days;
@@ -1420,7 +1413,7 @@ function renderToday(){
           <div class="banner-title">${isSurgeryDay ? "Surgery day" : "Day "+dayNum+" post-op"} — ${recentSurgery.type}</div>
           <div class="banner-body">${isSurgeryDay
             ? "Take a peak expiratory flow (PEF) reading today as your post-surgery baseline, if your care team has approved it."
-            : "Rest and recover. Keep activity light and let your airway heal — log symptoms if anything feels off."}</div>
+            : "Follow your surgeon's / discharge instructions."}</div>
           <button class="link" onclick="openPeakFlowModal()">Log PEF</button>
         </div>
       </div>`);
@@ -1448,20 +1441,12 @@ function renderToday(){
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
 
-  const o2Readings = getCombinedOxygenReadings();
-  const latestO2 = o2Readings.length ? o2Readings[o2Readings.length-1].value : null;
-  const lowO2 = o2Readings.length ? Math.min(...o2Readings.map(r=>r.value)) : null;
-  document.getElementById('todayLatestO2').innerHTML = latestO2!==null ? `${latestO2}<span class="stat-unit">%</span>` : '—';
-  document.getElementById('todayLatestO2').style.color = (latestO2!==null && latestO2<92) ? 'var(--sev4)' : 'var(--ink)';
-  document.getElementById('todayLowO2').innerHTML = lowO2!==null ? `${lowO2}<span class="stat-unit">%</span>` : '—';
-
   const latestSym = state.symptoms[state.symptoms.length-1];
   const sumEl = document.getElementById('todaySymptomSummary');
   if(!latestSym){
     sumEl.innerHTML = `<div class="empty" style="padding:10px;"><span class="eicon">🌤️</span>No symptoms logged yet.</div>`;
   }else{
-    const items = [[state.settings.fixedSymptomLabels.cough,latestSym.cough],[state.settings.fixedSymptomLabels.mucus,latestSym.mucus],[state.settings.fixedSymptomLabels.stridor,latestSym.stridor],[state.settings.fixedSymptomLabels.voice,latestSym.voice],
-      ...(latestSym.custom||[]).map(c=>[c.label,c.value])];
+    const items = (latestSym.custom||[]).map(c=>[c.label,c.value]);
     sumEl.innerHTML = items.map(([label,val])=>`
       <div class="row" style="padding:2px 0;">
         <span style="font-size:13.5px;color:var(--ink-soft);">${label}</span>
@@ -1491,9 +1476,18 @@ function renderPeakFlowTab(){
   document.getElementById('pfMax').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('pfLatest').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
 
-  const pts = state.peakFlow.map(r=>({x:new Date(r.date), y:r.value}));
   const markers = state.surgeries.map(s=>new Date(s.date));
-  buildLineChart(document.getElementById('pfChart'), [{points:pts,color:'#0F6E68'}], {markers});
+  document.getElementById('pfViewToggle').innerHTML = chartViewToggleHtml('pf');
+  const pfView = state.settings.chartView.pf || 'graph';
+  document.getElementById('pfChartWrap').style.display = pfView==='graph' ? 'block':'none';
+  document.getElementById('pfTableWrap').style.display = pfView==='table' ? 'block':'none';
+  if(pfView==='graph'){
+    const pts = state.peakFlow.map(r=>({x:new Date(r.date), y:r.value}));
+    buildLineChart(document.getElementById('pfChart'), [{points:pts,color:'#0F6E68'}], {markers});
+  }else{
+    document.getElementById('pfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery'],
+      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
+  }
 
   // % of max peak flow
   const maxPF = state.settings.maxPeakFlow;
@@ -1506,12 +1500,16 @@ function renderPeakFlowTab(){
     pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a PEF reading to see your % of personal best.</div>`;
   }else{
     const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
-    const latestPct = withPct[withPct.length-1].pct;
+    const latestReading = withPct[withPct.length-1];
+    const latestPct = latestReading.pct;
     const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
+    const pctView = state.settings.chartView.pfPct || 'graph';
     pctBody.innerHTML = `
       <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span></div>
-      <div class="stat-label" style="margin-bottom:14px;">Latest, vs. personal best ${maxPF} L/min</div>
-      <div class="chart-wrap"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
+      <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
+      ${chartViewToggleHtml('pfPct')}
+      <div id="pfPctChartWrap" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
+      <div id="pfPctTableWrap" style="display:${pctView==='table'?'block':'none'};"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 50%</span>
@@ -1519,7 +1517,12 @@ function renderPeakFlowTab(){
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
-    buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, threshold:50});
+    if(pctView==='graph'){
+      buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, threshold:50});
+    }else{
+      document.getElementById('pfPctTableWrap').innerHTML = simpleTable(['Date','% of personal best'],
+        [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
+    }
   }
 
   const listEl = document.getElementById('pfList');
@@ -1549,9 +1552,18 @@ function renderOxygenTab(){
   document.getElementById('oxLatest').style.color = (latest!==null && latest<92) ? 'var(--sev4)' : 'var(--ink)';
   document.getElementById('oxLow').innerHTML = low!==null ? `${low}<span class="stat-unit">%</span>` : '—';
 
-  const pts = readings.map(r=>({x:new Date(r.date), y:r.value}));
   const markers = state.surgeries.map(s=>new Date(s.date));
-  buildLineChart(document.getElementById('oxChart'), [{points:pts,color:'#5C8A9E'}], {markers, minY:80, maxY:100, threshold:92});
+  document.getElementById('oxViewToggle').innerHTML = chartViewToggleHtml('oxygen');
+  const oxView = state.settings.chartView.oxygen || 'graph';
+  document.getElementById('oxChartWrap').style.display = oxView==='graph' ? 'block':'none';
+  document.getElementById('oxTableWrap').style.display = oxView==='table' ? 'block':'none';
+  if(oxView==='graph'){
+    const pts = readings.map(r=>({x:new Date(r.date), y:r.value}));
+    buildLineChart(document.getElementById('oxChart'), [{points:pts,color:'#5C8A9E'}], {markers, minY:80, maxY:100, threshold:92});
+  }else{
+    document.getElementById('oxTableWrap').innerHTML = simpleTable(['Date','SpO2 (%)','Surgery'],
+      [...readings].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
+  }
 
   const listEl = document.getElementById('oxList');
   if(!readings.length){
@@ -1587,88 +1599,66 @@ function renderOxygenTab(){
 }
 
 function renderSymptomsTab(){
-  // chart only plots the fixed core symptoms — custom activities can change name/count over time
-  const defs = [['cough',state.settings.fixedSymptomLabels.cough,'#0F6E68'],['mucus',state.settings.fixedSymptomLabels.mucus,'#5C8A9E'],['stridor',state.settings.fixedSymptomLabels.stridor,'#C97A3D'],['voice',state.settings.fixedSymptomLabels.voice,'#B65C8A']];
+  // plots whatever is in the current symptom list (unlimited, user-editable) by matching each entry's snapshot to its id
+  const defs = state.settings.customSymptoms.map((c,i)=>[c.id, c.label, symptomColor(i)]);
+  document.getElementById('symViewToggle').innerHTML = chartViewToggleHtml('symptoms');
+  const symView = state.settings.chartView.symptoms || 'graph';
   const chartWrap = document.getElementById('symChartWrap');
   const tableWrap = document.getElementById('symTableWrap');
-  if(state.symptoms.length<3){
+  if(!state.symptoms.length){
     chartWrap.style.display = 'none';
     tableWrap.style.display = 'block';
-    if(!state.symptoms.length){
-      tableWrap.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a couple of symptom entries to see them here.</div>`;
-    }else{
-      const rows = [...state.symptoms].reverse();
-      tableWrap.innerHTML = `<table style="border-collapse:collapse;width:100%;font-size:13px;">
-        <thead><tr>
-          <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;">Symptom</th>
-          ${rows.map(s=>`<th style="text-align:center;padding:6px 8px;color:var(--ink-faint);font-weight:600;">${fmtDate(s.date)}</th>`).join('')}
-        </tr></thead>
-        <tbody>
-          ${defs.map(([key,label,color])=>`
-            <tr>
-              <td style="padding:6px 8px 6px 0;white-space:nowrap;"><span class="legend-dot" style="background:${color};"></span>${escapeHtml(label)}</td>
-              ${rows.map(s=>`<td style="text-align:center;padding:6px 8px;">${typeof s[key]==='number' ? s[key] : '—'}</td>`).join('')}
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
-    }
+    tableWrap.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a symptom entry to see it here.</div>`;
+  }else if(symView==='table'){
+    chartWrap.style.display = 'none';
+    tableWrap.style.display = 'block';
+    const rows = [...state.symptoms].reverse();
+    tableWrap.innerHTML = `<table style="border-collapse:collapse;width:100%;font-size:13px;">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;">Symptom</th>
+        ${rows.map(s=>`<th style="text-align:center;padding:6px 8px;color:var(--ink-faint);font-weight:600;">${fmtDate(s.date)}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${defs.map(([id,label,color])=>`
+          <tr>
+            <td style="padding:6px 8px 6px 0;white-space:nowrap;"><span class="legend-dot" style="background:${color};"></span>${escapeHtml(label)}</td>
+            ${rows.map(s=>{ const entry=(s.custom||[]).find(c=>c.id===id); return `<td style="text-align:center;padding:6px 8px;">${entry?entry.value:'—'}</td>`; }).join('')}
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
   }else{
     chartWrap.style.display = 'block';
     tableWrap.style.display = 'none';
-    const series = defs.map(([key,label,color])=>({
-      points: state.symptoms.filter(s=>typeof s[key]==='number').map(s=>({x:new Date(s.date), y:s[key]})),
+    const series = defs.map(([id,label,color])=>({
+      points: state.symptoms.map(s=>{ const entry=(s.custom||[]).find(c=>c.id===id); return entry ? {x:new Date(s.date), y:entry.value} : null; }).filter(Boolean),
       color
     }));
     buildLineChart(document.getElementById('symChart'), series, {minY:0,maxY:4});
   }
-  document.getElementById('symLegend').innerHTML = defs.map(([k,label,color])=>`<span><span class="legend-dot" style="background:${color};"></span>${label}</span>`).join('') + `<span style="color:var(--ink-faint);">Your own activities are in the history list below</span>`;
+  document.getElementById('symLegend').innerHTML = defs.map(([id,label,color])=>`<span><span class="legend-dot" style="background:${color};"></span>${escapeHtml(label)}</span>`).join('');
+
+  const renderSymptomList = (rows)=> rows.map(s=>{
+    const text = (s.custom||[]).map(c=>`${escapeHtml(c.label)} ${c.value}`).join(' · ');
+    return `
+    <div class="list-item">
+      <div class="li-main">
+        <div class="li-date">${fmtDate(s.date)}</div>
+        <div class="li-notes" style="margin-top:5px;">${text}</div>
+      </div>
+      <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
+    </div>`;
+  }).join('');
 
   const listEl = document.getElementById('symList');
-  if(!state.symptoms.length){
-    listEl.innerHTML = `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
-  }else{
-    listEl.innerHTML = [...state.symptoms].reverse().map(s=>{
-      const customText = (s.custom||[]).map(c=>`${escapeHtml(c.label)} ${c.value}`).join(' · ');
-      const coreText = [
-        typeof s.cough==='number' ? `${state.settings.fixedSymptomLabels.cough} ${s.cough}`:null,
-        typeof s.mucus==='number' ? `${state.settings.fixedSymptomLabels.mucus} ${s.mucus}`:null,
-        typeof s.stridor==='number' ? `${state.settings.fixedSymptomLabels.stridor} ${s.stridor}`:null,
-        typeof s.voice==='number' ? `${state.settings.fixedSymptomLabels.voice} ${s.voice}`:null
-      ].filter(Boolean).join(' · ');
-      return `
-      <div class="list-item">
-        <div class="li-main">
-          <div class="li-date">${fmtDate(s.date)}</div>
-          <div class="li-notes" style="margin-top:5px;">${[coreText,customText].filter(Boolean).join(' · ')}</div>
-        </div>
-        <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
-      </div>`;
-    }).join('');
-  }
+  listEl.innerHTML = state.symptoms.length
+    ? renderSymptomList([...state.symptoms].reverse())
+    : `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
 
   const medListEl = document.getElementById('medSymptomList');
   if(medListEl){
-    if(!state.symptoms.length){
-      medListEl.innerHTML = `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
-    }else{
-      medListEl.innerHTML = [...state.symptoms].reverse().slice(0,5).map(s=>{
-        const customText = (s.custom||[]).map(c=>`${escapeHtml(c.label)} ${c.value}`).join(' · ');
-        const coreText = [
-          typeof s.cough==='number' ? `${state.settings.fixedSymptomLabels.cough} ${s.cough}`:null,
-          typeof s.mucus==='number' ? `${state.settings.fixedSymptomLabels.mucus} ${s.mucus}`:null,
-          typeof s.stridor==='number' ? `${state.settings.fixedSymptomLabels.stridor} ${s.stridor}`:null,
-          typeof s.voice==='number' ? `${state.settings.fixedSymptomLabels.voice} ${s.voice}`:null
-        ].filter(Boolean).join(' · ');
-        return `
-        <div class="list-item">
-          <div class="li-main">
-            <div class="li-date">${fmtDate(s.date)}</div>
-            <div class="li-notes" style="margin-top:5px;">${[coreText,customText].filter(Boolean).join(' · ')}</div>
-          </div>
-          <button class="li-del" onclick="deleteSymptom('${s.id}')" aria-label="Delete">✕</button>
-        </div>`;
-      }).join('');
-    }
+    medListEl.innerHTML = state.symptoms.length
+      ? renderSymptomList([...state.symptoms].reverse().slice(0,5))
+      : `<div class="empty"><span class="eicon">📝</span>No symptom logs yet.</div>`;
   }
 }
 
@@ -1887,8 +1877,8 @@ function exportDataCSV(){
       state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
     csvSection('SpO2', ['Date','Value (%)','Note'],
       getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
-    csvSection('Symptoms', ['Date','Cough','Mucus','Stridor','Voice','Custom activities'],
-      state.symptoms.map(s=>[fmtDate(s.date), s.cough, s.mucus, s.stridor, s.voice, (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')])),
+    csvSection('Symptoms', ['Date','Symptoms'],
+      state.symptoms.map(s=>[fmtDate(s.date), (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')])),
     csvSection('Surgeries', ['Date','Procedure','Location','Notes'],
       state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||''])),
     csvSection('Treatments', ['Started','Ended','Name','Kind','Notes'],
@@ -1925,7 +1915,7 @@ function exportDataPDF(){
     <div class="sub">Generated ${fmtDate(todayISO())}</div>
     ${table('PEF', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
     ${table('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
-    ${table('Symptoms', ['Date','Cough','Mucus','Stridor','Voice','Custom activities'], state.symptoms.map(s=>[fmtDate(s.date), s.cough, s.mucus, s.stridor, s.voice, (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')]))}
+    ${table('Symptoms', ['Date','Symptoms'], state.symptoms.map(s=>[fmtDate(s.date), (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')]))}
     ${table('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
     ${table('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
     ${table('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
