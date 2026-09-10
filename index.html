@@ -1742,8 +1742,6 @@ function openSettings(){
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
 
     <div class="stack">
-      <button class="btn btn-primary" onclick="openFeedbackModal()">💬 Give feedback</button>
-      <button class="btn btn-outline" onclick="openFeedbackListModal()">View feedback from others</button>
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
       <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.')) clearData();">Delete all data</button>
@@ -1751,7 +1749,7 @@ function openSettings(){
     <div class="disclaimer" style="padding-top:18px;">
       Airway is a personal tracking tool, not a medical device. It doesn't diagnose or treat any condition.
       Always follow your ENT or pulmonologist's guidance, and seek urgent care for sudden or severe breathing difficulty.
-      Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared. Feedback you submit is shared and visible to other people using this app.
+      Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared.
     </div>
   `);
 }
@@ -1763,106 +1761,6 @@ function saveMaxPeakFlow(){
   saveState(); closeModal(); renderAll(); toast('Max PEF saved');
 }
 
-/* ---- Feedback ---- */
-const FEEDBACK_FACES = ['😞','🙁','😐','🙂','😄'];
-let feedbackDraft = { rating:null, wantsNotifications:null };
-function openFeedbackModal(){
-  feedbackDraft = { rating:null, wantsNotifications:null };
-  renderModal(`
-    <div class="modal-head"><h2>Give feedback</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">This helps decide what to build next — including whether a full website with real calendar push notifications is worth building. Feedback is shared, not private like your tracking data.</p>
-
-    <div class="field">
-      <label class="field-label">How's the app working for you?</label>
-      <div class="sev-picker" id="feedbackFaces">
-        ${FEEDBACK_FACES.map((f,i)=>`<button type="button" class="sev-opt" data-val="${i+1}" onclick="pickFeedbackRating(${i+1})" style="font-size:18px;">${f}</button>`).join('')}
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="field-label">Would you want real calendar / push notification reminders enough to use a full website version (instead of this in-browser app)?</label>
-      <div class="segmented" id="feedbackNotif" style="margin-bottom:0;">
-        <button type="button" data-v="yes" onclick="pickFeedbackNotif('yes')">Yes</button>
-        <button type="button" data-v="maybe" onclick="pickFeedbackNotif('maybe')">Maybe</button>
-        <button type="button" data-v="no" onclick="pickFeedbackNotif('no')">No</button>
-      </div>
-    </div>
-
-    <div class="field"><label class="field-label">Anything else? (bugs, missing features, confusing bits)</label><textarea id="fbMessage" placeholder="Tell me what's working and what's not..."></textarea></div>
-    <div class="field"><label class="field-label">Name or contact (optional)</label><input type="text" id="fbContact" placeholder="Leave blank to stay anonymous"></div>
-
-    <button class="btn btn-primary" onclick="submitFeedback()">Send feedback</button>
-  `);
-}
-function pickFeedbackRating(val){
-  feedbackDraft.rating = val;
-  document.querySelectorAll('#feedbackFaces .sev-opt').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)===val));
-}
-function pickFeedbackNotif(val){
-  feedbackDraft.wantsNotifications = val;
-  document.querySelectorAll('#feedbackNotif button').forEach(b=>b.classList.toggle('active', b.dataset.v===val));
-}
-async function submitFeedback(){
-  const message = document.getElementById('fbMessage').value.trim();
-  const contact = document.getElementById('fbContact').value.trim();
-  if(!feedbackDraft.rating){ toast('Tap a face to rate the app'); return; }
-  const entry = {
-    id: uid(),
-    date: todayISO(),
-    rating: feedbackDraft.rating,
-    wantsNotifications: feedbackDraft.wantsNotifications,
-    message, contact
-  };
-  try{
-    await window.storage.set('feedback:'+entry.id, JSON.stringify(entry), true);
-    closeModal();
-    toast('Thanks — feedback sent');
-  }catch(e){
-    console.error(e);
-    toast('Could not send feedback — try again');
-  }
-}
-async function openFeedbackListModal(){
-  renderModal(`
-    <div class="modal-head"><h2>Feedback from others</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div id="fbListBody"><div class="empty">Loading…</div></div>
-  `);
-  try{
-    const listRes = await window.storage.list('feedback:', true);
-    const keys = (listRes && listRes.keys) || [];
-    if(!keys.length){
-      document.getElementById('fbListBody').innerHTML = `<div class="empty"><span class="eicon">💬</span>No feedback yet — be the first.</div>`;
-      return;
-    }
-    const entries = [];
-    for(const k of keys){
-      try{
-        const r = await window.storage.get(k, true);
-        if(r && r.value) entries.push(JSON.parse(r.value));
-      }catch(e){ /* skip unreadable entry */ }
-    }
-    entries.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    const avg = entries.length ? (entries.reduce((s,e)=>s+(e.rating||0),0)/entries.length).toFixed(1) : '—';
-    const yesCount = entries.filter(e=>e.wantsNotifications==='yes').length;
-    document.getElementById('fbListBody').innerHTML = `
-      <div class="card-flat" style="margin-bottom:14px;">
-        <div class="row"><span style="font-size:13.5px;color:var(--ink-soft);">Average rating</span><strong>${avg} / 5</strong></div>
-        <div class="row" style="margin-top:6px;"><span style="font-size:13.5px;color:var(--ink-soft);">Want a full website w/ push notifications</span><strong>${yesCount} of ${entries.length}</strong></div>
-      </div>
-      ${entries.map(e=>`
-        <div class="list-item">
-          <div class="li-main">
-            <div class="li-date">${fmtDate(e.date)}${e.contact?' · '+escapeHtml(e.contact):''}</div>
-            <div class="li-title" style="font-size:14px;">${FEEDBACK_FACES[(e.rating||1)-1]} ${e.wantsNotifications?'· wants push: <strong>'+e.wantsNotifications+'</strong>':''}</div>
-            ${e.message?`<div class="li-notes">${escapeHtml(e.message)}</div>`:''}
-          </div>
-        </div>`).join('')}
-    `;
-  }catch(e){
-    console.error(e);
-    document.getElementById('fbListBody').innerHTML = `<div class="empty">Couldn't load feedback right now.</div>`;
-  }
-}
 function csvCell(v){
   const s = (v===null||v===undefined) ? '' : String(v);
   return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;

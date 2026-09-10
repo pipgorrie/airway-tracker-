@@ -28,13 +28,6 @@ sent anywhere.
 `window.storage` API with a `localStorage`-backed equivalent, so the app runs
 as a normal static site.
 
-**Note on "feedback"**: the in-app feedback feature was originally designed
-to be shared across everyone using the artifact. Without a backend, feedback
-submitted here stays local to your own browser only — there's no shared
-feedback pool. If you want real cross-device/cross-user feedback, that would
-need a small backend (e.g. a database-backed API) swapped in for the
-`shared: true` storage calls.
-
 **Backups**: use Settings → "Export my data (.json)" regularly, since
 `localStorage` is tied to this browser/device and can be cleared by clearing
 browser data.
