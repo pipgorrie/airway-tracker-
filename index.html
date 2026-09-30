@@ -1435,7 +1435,8 @@ function renderTabIntro(elId, title, bodyHtml){
   el.innerHTML = `
     <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
       <h2 style="margin-bottom:8px;">${title}</h2>
-      <div style="font-size:13.5px;line-height:1.5;color:var(--ink);">${bodyHtml}</div>
+      <div style="font-size:13.5px;line-height:1.5;color:var(--ink);margin-bottom:10px;">${bodyHtml}</div>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only.</p>
     </div>`;
 }
 function renderOxIntro(){
