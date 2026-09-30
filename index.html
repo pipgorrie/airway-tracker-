@@ -281,7 +281,6 @@
 
   <!-- TODAY -->
   <section class="view active" id="view-today">
-    <div id="todayIntro"></div>
     <div id="todayBanners"></div>
 
     <div class="quick-actions">
@@ -314,13 +313,7 @@
       <div id="todayPfPercentBody"></div>
     </div>
 
-    <div class="card">
-      <div class="row" style="margin-bottom:10px;">
-        <h2>Symptoms</h2>
-        <button class="btn btn-sm btn-outline" onclick="switchTab('symptoms')">View trend</button>
-      </div>
-      <div id="todaySymptomSummary" class="stack"></div>
-    </div>
+    <div id="todayIntro"></div>
 
     <div class="card" id="upcomingCard" style="display:none;">
       <h2 style="margin-bottom:10px;">Recent activity</h2>
@@ -511,11 +504,6 @@ function defaultSettings(){
     reminderEnabled:false, reminderTime:'20:00', unit:'L/min',
     chartView: {pf:'graph', pfPct:'graph', oxygen:'graph', symptoms:'graph'}, // 'graph' or 'table', per chart
     maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
-    introDismissed: false, // "How to use this app" card on Today — dismissed once read, reopenable from Settings
-    introDismissedPF: false, // per-tab "how this page works" intro cards — same dismiss/reopen pattern
-    introDismissedOxygen: false,
-    introDismissedSymptoms: false,
-    introDismissedMedical: false,
     // unlimited, user-editable list of symptoms/activities to rate each time symptoms are logged
     customSymptoms: [
       {id:'symp1', label:'Stridor / noisy breathing'},
@@ -1434,7 +1422,6 @@ function pefDropTier(pct){
 
 function renderTodayIntro(){
   const el = document.getElementById('todayIntro');
-  if(state.settings.introDismissed){ el.innerHTML=''; return; }
   el.innerHTML = `
     <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
       <h2 style="margin-bottom:10px;">How to use this app</h2>
@@ -1444,46 +1431,33 @@ function renderTodayIntro(){
         <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), turn on daily reminders, and export or delete your data.</p>
       </div>
-      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
-      <button class="btn btn-primary btn-sm" onclick="dismissTodayIntro()">Got it</button>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
     </div>`;
 }
-function dismissTodayIntro(){
-  state.settings.introDismissed = true;
-  saveState();
-  renderTodayIntro();
-}
 // generic dismissible "how this page works" intro card, reused across tabs
-function renderTabIntro(elId, settingsKey, title, bodyHtml){
+function renderTabIntro(elId, title, bodyHtml){
   const el = document.getElementById(elId);
   if(!el) return;
-  if(state.settings[settingsKey]){ el.innerHTML=''; return; }
   el.innerHTML = `
     <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
       <h2 style="margin-bottom:8px;">${title}</h2>
-      <div style="font-size:13.5px;line-height:1.5;color:var(--ink);margin-bottom:12px;">${bodyHtml}</div>
-      <button class="btn btn-primary btn-sm" onclick="dismissTabIntro('${elId}','${settingsKey}')">Got it</button>
+      <div style="font-size:13.5px;line-height:1.5;color:var(--ink);">${bodyHtml}</div>
     </div>`;
 }
-function dismissTabIntro(elId, settingsKey){
-  state.settings[settingsKey] = true;
-  saveState();
-  document.getElementById(elId).innerHTML = '';
-}
 function renderPfIntro(){
-  renderTabIntro('pfIntro', 'introDismissedPF', 'Using this page',
+  renderTabIntro('pfIntro', 'Using this page',
     `This page tracks your peak expiratory flow (PEF) over time. Log a reading with <strong>Log PEF</strong> on the Today tab. Add your personal best PEF in Settings to see each reading as a % of that, with alerts for a 10% or 20%+ drop.`);
 }
 function renderOxIntro(){
-  renderTabIntro('oxIntro', 'introDismissedOxygen', 'Using this page',
+  renderTabIntro('oxIntro', 'Using this page',
     `Track your oxygen saturation (SpO₂) here — optional, but useful if your care team wants it recorded. Log a reading from the <strong>Medical</strong> tab, under the SpO₂ section.`);
 }
 function renderSymIntro(){
-  renderTabIntro('symIntro', 'introDismissedSymptoms', 'Using this page',
+  renderTabIntro('symIntro', 'Using this page',
     `See how your symptoms change over time. Log a new entry from the <strong>Medical</strong> tab, under Symptoms — rate each item from 0 (none) to 4 (severe).`);
 }
 function renderMedIntro(){
-  renderTabIntro('medIntro', 'introDismissedMedical', 'Using this page',
+  renderTabIntro('medIntro', 'Using this page',
     `Keep a record of surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, and documents, plus your care team's details for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
 }
 
@@ -1549,19 +1523,6 @@ function renderToday(){
   const todayPfMarkers = state.surgeries.map(s=>new Date(s.date));
   buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markers:todayPfMarkers});
   renderPfPercentBody('todayPfPercentBody', 'todayPf', todayPfMarkers);
-
-  const latestSym = state.symptoms[state.symptoms.length-1];
-  const sumEl = document.getElementById('todaySymptomSummary');
-  if(!latestSym){
-    sumEl.innerHTML = `<div class="empty" style="padding:10px;"><span class="eicon">🌤️</span>No symptoms logged yet.</div>`;
-  }else{
-    const items = (latestSym.custom||[]).map(c=>[c.label,c.value]);
-    sumEl.innerHTML = items.map(([label,val])=>`
-      <div class="row" style="padding:2px 0;">
-        <span style="font-size:13.5px;color:var(--ink-soft);">${label}</span>
-        <span class="sev-opt sel-${val} active" style="flex:none;width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;">${val}</span>
-      </div>`).join('') + `<div style="font-size:11.5px;color:var(--ink-faint);margin-top:4px;">Logged ${fmtDate(latestSym.date)}</div>`;
-  }
 
   // recent activity feed (last 4 across everything)
   const combined = [
@@ -1871,7 +1832,6 @@ function openSettings(){
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
 
     <div class="stack">
-      <button class="btn btn-outline" onclick="showAllIntrosAgain()">Show "How to use this app" instructions again</button>
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
       <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.')) clearData();">Delete all data</button>
@@ -1882,14 +1842,6 @@ function openSettings(){
       Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared.
     </div>
   `);
-}
-function showAllIntrosAgain(){
-  state.settings.introDismissed = false;
-  state.settings.introDismissedPF = false;
-  state.settings.introDismissedOxygen = false;
-  state.settings.introDismissedSymptoms = false;
-  state.settings.introDismissedMedical = false;
-  saveState(); closeModal(); switchTab('today'); renderAll();
 }
 function saveMaxPeakFlow(){
   const raw = document.getElementById('maxPFInput').value;
