@@ -1344,9 +1344,11 @@ function buildLineChart(svgEl, series, opts={}){
     const pathD = s.points.map((p,i)=>`${i===0?'M':'L'}${sx(p.x.getTime()).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
     svg += `<path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
     s.points.forEach(p=>{
-      // most severe (lowest-value) threshold the point falls under wins the point's color
+      // most severe (lowest-value) threshold the point falls under wins the point's color;
+      // otherwise a point falling on a surgery date is colored to match the marker
       const tier = thresholdLines.find(t=>p.y<t.value);
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:s.color}"/>`;
+      const onMarkerDay = !tier && (opts.markers||[]).some(m=>m.toDateString()===p.x.toDateString());
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:onMarkerDay?'#C97A3D':s.color}"/>`;
     });
   });
   // y-axis labels
