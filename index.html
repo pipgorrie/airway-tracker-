@@ -1296,6 +1296,7 @@ function pctTable(rows){
     <thead><tr>
       <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">Date</th>
       <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">% of personal best</th>
+      <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">Surgery</th>
     </tr></thead>
     <tbody>${rows.map(r=>{
       const tier = pefDropTier(r.pct);
@@ -1303,6 +1304,7 @@ function pctTable(rows){
       return `<tr>
         <td style="padding:6px 8px 6px 0;white-space:nowrap;">${escapeHtml(fmtDateTime(r.date))}</td>
         <td style="padding:6px 8px 6px 0;white-space:nowrap;color:${color};font-weight:${tier?'700':'400'};">${r.pct}</td>
+        <td style="padding:6px 8px 6px 0;white-space:nowrap;">${isSurgeryDay(r.date)?'🏥 Yes':'—'}</td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
