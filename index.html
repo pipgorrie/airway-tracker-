@@ -509,6 +509,7 @@ let state = {
   settings: defaultSettings()
 };
 let stateLoaded = false;
+let todayPfListExpanded = false; // UI-only: whether the Today PEF history list shows all readings or just the latest 5
 
 async function loadState(){
   try{
@@ -612,6 +613,10 @@ function savePeakFlow(){
 function deletePeakFlow(id){
   state.peakFlow = state.peakFlow.filter(r=>r.id!==id);
   saveState(); renderAll();
+}
+function toggleTodayPfList(){
+  todayPfListExpanded = !todayPfListExpanded;
+  renderToday();
 }
 
 /* ---- Oxygen modal ---- */
@@ -1492,7 +1497,9 @@ function renderToday(){
   if(!state.peakFlow.length){
     pfListEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
   }else{
-    pfListEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
+    const allReversed = [...state.peakFlow].reverse();
+    const shown = todayPfListExpanded ? allReversed : allReversed.slice(0,5);
+    const rowsHtml = shown.map(r=>{
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
       const tier = pct!==null ? pefDropTier(pct) : null;
       const tierTag = tier ? ` <span class="kind-tag" style="background:${tier===20?'var(--sev4)':'var(--sev2)'};color:#fff;">↓${tier}%+</span>` : '';
@@ -1506,6 +1513,10 @@ function renderToday(){
         <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
       </div>`;
     }).join('');
+    const toggleHtml = allReversed.length>5
+      ? `<button class="info-toggle" style="margin-top:10px;" onclick="toggleTodayPfList()">${todayPfListExpanded ? 'Show fewer ▴' : `Show all ${allReversed.length} readings ▾`}</button>`
+      : '';
+    pfListEl.innerHTML = rowsHtml + toggleHtml;
   }
 
   // recent activity feed (last 4 across everything)
