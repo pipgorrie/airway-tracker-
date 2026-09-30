@@ -1335,8 +1335,9 @@ function buildLineChart(svgEl, series, opts={}){
     svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8B9A9D" font-size="12" font-family="IBM Plex Sans">Not enough data yet</text>`;
     return;
   }
-  const markerTimes = (opts.markers||[]).map(m=>m.getTime());
-  const xs = allPts.map(p=>p.x.getTime()).concat(markerTimes);
+  // x-axis range comes from the data only — a surgery marker far outside the reading
+  // dates shouldn't stretch/squash the chart, it just won't be drawn (see markers below)
+  const xs = allPts.map(p=>p.x.getTime());
   const ys = allPts.map(p=>p.y);
   let minX=Math.min(...xs), maxX=Math.max(...xs);
   if(minX===maxX){ minX-=86400000; maxX+=86400000; }
