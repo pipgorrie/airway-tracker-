@@ -21,6 +21,7 @@
     --amber:#C97A3D;
     --amber-soft:#F3E3D3;
     --surgery:#2E6FB8;
+    --silsi:#7B61B3;
     --sev0:#4C8C6B;
     --sev1:#8FA84B;
     --sev2:#D9A441;
@@ -310,6 +311,7 @@
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
+        <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
       </div>
     </div>
 
@@ -355,6 +357,7 @@
         <span><span class="legend-dot" style="background:#5C8A9E;"></span>SpO₂ %</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 92%</span>
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
+        <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         Readings below 92% are flagged for your awareness only — this isn't a diagnosis. If a reading concerns you, especially with worsening breathlessness, contact your care team or seek urgent care.
@@ -397,6 +400,7 @@
     <div id="medIntro"></div>
     <div class="segmented">
       <button class="active" data-seg="surgeries" onclick="setSurgerySeg('surgeries')">Surgeries</button>
+      <button data-seg="silsi" onclick="setSurgerySeg('silsi')">SILSI</button>
       <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
       <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
       <button data-seg="spo2" onclick="setSurgerySeg('spo2')">SpO₂ (optional)</button>
@@ -409,6 +413,14 @@
       <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openSurgeryModal()">+ Log a surgery</button>
       <div class="card">
         <div id="surgeryList"><div class="empty"><span class="eicon">🏥</span>No surgeries logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-silsi" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openSILSIModal()">+ Log a SILSI</button>
+      <p style="font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;">Serial intralesional steroid injection — shown on the PEF and % of personal best graphs with its own marker.</p>
+      <div class="card">
+        <div id="silsiList"><div class="empty"><span class="eicon">💉</span>No SILSI procedures logged yet.</div></div>
       </div>
     </div>
 
@@ -506,6 +518,7 @@ let state = {
   oxygen: [],          // {id, date (ISO), value (number, %), note}
   symptoms: [],       // {id, date, cough, mucus, stridor, custom:[{id,label,value}]}
   surgeries: [],       // {id, date, type, notes}
+  silsi: [],              // {id, date, notes} — serial intralesional steroid injections (SILSI)
   treatments: [],       // {id, name, kind ('medication'|'diet'), start, end, notes}
   allergies: [],        // {id, allergen, reaction, severity, notes}
   documents: [],        // {id, date, title, kind ('paper'|'email'|'other'), note, linkedSurgeryId, thumb (small dataURL)} — full-size image stored separately per doc
@@ -569,6 +582,7 @@ function switchTab(tab){
 function setSurgerySeg(seg){
   document.querySelectorAll('#view-surgery .segmented button').forEach(b=>b.classList.toggle('active', b.dataset.seg===seg));
   document.getElementById('seg-surgeries').style.display = seg==='surgeries' ? 'block':'none';
+  document.getElementById('seg-silsi').style.display = seg==='silsi' ? 'block':'none';
   document.getElementById('seg-treatments').style.display = seg==='treatments' ? 'block':'none';
   document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
   document.getElementById('seg-spo2').style.display = seg==='spo2' ? 'block':'none';
@@ -821,6 +835,28 @@ function formatSurgeryLocation(location){
   return location || '';
 }
 function deleteSurgery(id){ state.surgeries = state.surgeries.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- SILSI modal (serial intralesional steroid injection) ---- */
+function openSILSIModal(){
+  const now = new Date();
+  renderModal(`
+    <div class="modal-head"><h2>Log a SILSI</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:16px;">Serial intralesional steroid injection.</p>
+    <div class="field"><label class="field-label">Date</label><input type="date" id="slDate" value="${now.toISOString().slice(0,10)}"></div>
+    <div class="field"><label class="field-label">Notes (optional)</label><textarea id="slNotes" placeholder="Site, dose, how it went..."></textarea></div>
+    <button class="btn btn-primary" onclick="saveSILSI()">Save SILSI</button>
+  `);
+}
+function saveSILSI(){
+  const date = document.getElementById('slDate').value;
+  const notes = document.getElementById('slNotes').value.trim();
+  if(!date){ toast('Add a date'); return; }
+  const iso = new Date(date+'T09:00').toISOString();
+  state.silsi.push({id:uid(), date:iso, notes});
+  state.silsi.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveState(); closeModal(); renderAll(); toast('SILSI logged');
+}
+function deleteSILSI(id){ state.silsi = state.silsi.filter(r=>r.id!==id); saveState(); renderAll(); }
 
 /* ---- Treatment modal ---- */
 function openTreatmentModal(){
@@ -1367,12 +1403,16 @@ function buildLineChart(svgEl, series, opts={}){
       svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#E3E8E5" stroke-width="1"/>`;
     }
   }
-  // surgery markers
-  (opts.markers||[]).forEach(m=>{
-    const mx = sx(m.getTime());
-    if(mx>=padL && mx<=W-padR){
-      svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#2E6FB8" stroke-width="1.5" stroke-dasharray="3,3"/>`;
-    }
+  // event markers (surgery dates, SILSI dates, ...) — each group is {dates:[Date], color}.
+  // opts.markers stays as shorthand for a single blue "surgery" group for backward compatibility.
+  const markerGroups = opts.markerGroups || (opts.markers ? [{dates:opts.markers, color:'#2E6FB8'}] : []);
+  markerGroups.forEach(group=>{
+    group.dates.forEach(m=>{
+      const mx = sx(m.getTime());
+      if(mx>=padL && mx<=W-padR){
+        svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="${group.color}" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+      }
+    });
   });
   // optional threshold reference line(s) — legacy single 'threshold' (e.g. low-oxygen cutoff),
   // or 'thresholds':[{value,color,label}] (ascending by value) for multi-tier lines like PEF drop %
@@ -1392,10 +1432,10 @@ function buildLineChart(svgEl, series, opts={}){
     svg += `<path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
     s.points.forEach(p=>{
       // most severe (lowest-value) threshold the point falls under wins the point's color;
-      // otherwise a point falling on a surgery date is colored to match the marker
+      // otherwise a point falling on a marker date is colored to match that marker group
       const tier = thresholdLines.find(t=>p.y<t.value);
-      const onMarkerDay = !tier && (opts.markers||[]).some(m=>m.toDateString()===p.x.toDateString());
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:onMarkerDay?'#2E6FB8':s.color}"/>`;
+      const markerGroup = !tier && markerGroups.find(g=>g.dates.some(m=>m.toDateString()===p.x.toDateString()));
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:markerGroup?markerGroup.color:s.color}"/>`;
     });
   });
   // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
@@ -1422,6 +1462,7 @@ function renderAll(){
   renderOxygenTab();
   renderSymptomsTab();
   renderSurgeryTab();
+  renderSILSITab();
   renderTreatmentTab();
   renderAllergyTab();
   renderDocumentsTab();
@@ -1431,6 +1472,13 @@ function renderAll(){
 function isSurgeryDay(iso){
   const d = new Date(iso);
   return state.surgeries.some(s=>{
+    const sd = new Date(s.date);
+    return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && sd.getDate()===d.getDate();
+  });
+}
+function isSILSIDay(iso){
+  const d = new Date(iso);
+  return state.silsi.some(s=>{
     const sd = new Date(s.date);
     return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && sd.getDate()===d.getDate();
   });
@@ -1450,7 +1498,7 @@ function renderTodayIntro(){
       <h2 style="margin-bottom:10px;">How to use this app</h2>
       <div class="stack" style="gap:10px;margin-bottom:14px;">
         <p style="font-size:13.5px;line-height:1.5;"><strong>Today</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (with 10%/20% drop indicators once you've added a personal best in Settings), and your full reading history.</p>
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), and export or delete your data.</p>
       </div>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
@@ -1477,7 +1525,7 @@ function renderSymIntro(){
 }
 function renderMedIntro(){
   renderTabIntro('medIntro', 'Using this page',
-    `Keep a record of surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, and documents, plus your care team's details for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
+    `Keep a record of surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, symptoms, and documents, plus your care team's details for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
 }
 
 function renderToday(){
@@ -1508,19 +1556,21 @@ function renderToday(){
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
   const todayPfMarkers = state.surgeries.map(s=>new Date(s.date));
+  const todaySilsiMarkers = state.silsi.map(s=>new Date(s.date));
+  const todayMarkerGroups = [{dates:todayPfMarkers, color:'#2E6FB8'}, {dates:todaySilsiMarkers, color:'#7B61B3'}];
 
   document.getElementById('todayPfViewToggle').innerHTML = chartViewToggleHtml('pf');
   const pfView = state.settings.chartView.pf || 'graph';
   document.getElementById('todayPfChartWrap').style.display = pfView==='graph' ? 'block':'none';
   document.getElementById('todayPfTableWrap').style.display = pfView==='table' ? 'block':'none';
   if(pfView==='graph'){
-    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markers:todayPfMarkers});
+    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups});
   }else{
-    document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery'],
-      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
+    document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery','SILSI'],
+      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
   }
 
-  renderPfPercentBody('todayPfPercentBody', 'todayPf', todayPfMarkers);
+  renderPfPercentBody('todayPfPercentBody', 'todayPf', todayMarkerGroups);
 
   const pfListEl = document.getElementById('todayPfList');
   if(!state.peakFlow.length){
@@ -1553,6 +1603,7 @@ function renderToday(){
     ...state.peakFlow.map(r=>({date:r.date, text:`PEF logged — ${r.value} L/min`})),
     ...state.oxygen.map(r=>({date:r.date, text:`SpO₂ logged — ${r.value}%`})),
     ...state.surgeries.map(r=>({date:r.date, text:`Surgery: ${r.type}`})),
+    ...state.silsi.map(r=>({date:r.date, text:`SILSI logged`})),
     ...state.treatments.map(r=>({date:r.start+'T00:00', text:`${r.kind==='medication'?'Started medication':'Started diet'}: ${r.name}`})),
   ].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const upEl = document.getElementById('upcomingCard');
@@ -1571,7 +1622,7 @@ function renderToday(){
 
 // renders the "% of personal best" card body into any container — idPrefix keeps each
 // instance's inner chart/table/info-box ids unique so the same card can appear on multiple views
-function renderPfPercentBody(bodyElId, idPrefix, markers){
+function renderPfPercentBody(bodyElId, idPrefix, markerGroups){
   const maxPF = state.settings.maxPeakFlow;
   const pctBody = document.getElementById(bodyElId);
   if(!pctBody) return;
@@ -1599,12 +1650,13 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
         <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
+        <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, yStep:20, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markerGroups, minY:0, maxY:100, yStep:20, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
       document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
     }
@@ -1620,17 +1672,17 @@ function renderOxygenTab(){
   document.getElementById('oxLatest').style.color = (latest!==null && latest<92) ? 'var(--sev4)' : 'var(--ink)';
   document.getElementById('oxLow').innerHTML = low!==null ? `${low}<span class="stat-unit">%</span>` : '—';
 
-  const markers = state.surgeries.map(s=>new Date(s.date));
+  const markerGroups = [{dates:state.surgeries.map(s=>new Date(s.date)), color:'#2E6FB8'}, {dates:state.silsi.map(s=>new Date(s.date)), color:'#7B61B3'}];
   document.getElementById('oxViewToggle').innerHTML = chartViewToggleHtml('oxygen');
   const oxView = state.settings.chartView.oxygen || 'graph';
   document.getElementById('oxChartWrap').style.display = oxView==='graph' ? 'block':'none';
   document.getElementById('oxTableWrap').style.display = oxView==='table' ? 'block':'none';
   if(oxView==='graph'){
     const pts = readings.map(r=>({x:new Date(r.date), y:r.value}));
-    buildLineChart(document.getElementById('oxChart'), [{points:pts,color:'#5C8A9E'}], {markers, minY:80, maxY:100, threshold:92});
+    buildLineChart(document.getElementById('oxChart'), [{points:pts,color:'#5C8A9E'}], {markerGroups, minY:80, maxY:100, threshold:92});
   }else{
-    document.getElementById('oxTableWrap').innerHTML = simpleTable(['Date','SpO2 (%)','Surgery'],
-      [...readings].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
+    document.getElementById('oxTableWrap').innerHTML = simpleTable(['Date','SpO2 (%)','Surgery','SILSI'],
+      [...readings].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
   }
 
   const listEl = document.getElementById('oxList');
@@ -1759,6 +1811,22 @@ function renderSurgeryTab(){
     }).join('');
   }
 }
+function renderSILSITab(){
+  const listEl = document.getElementById('silsiList');
+  if(!state.silsi.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">💉</span>No SILSI procedures logged yet.</div>`;
+  }else{
+    listEl.innerHTML = [...state.silsi].reverse().map(s=>`
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDate(s.date)}</div>
+          <div class="li-title">SILSI</div>
+          ${s.notes?`<div class="li-notes">${escapeHtml(s.notes)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deleteSILSI('${s.id}')" aria-label="Delete">✕</button>
+      </div>`).join('');
+  }
+}
 function renderTreatmentTab(){
   const listEl = document.getElementById('treatmentList');
   if(!state.treatments.length){
@@ -1852,6 +1920,8 @@ function exportDataCSV(){
       getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
     csvSection('Surgeries', ['Date','Procedure','Location','Notes'],
       state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||''])),
+    csvSection('SILSI', ['Date','Notes'],
+      state.silsi.map(s=>[fmtDate(s.date), s.notes||''])),
     csvSection('Treatments', ['Started','Ended','Name','Kind','Notes'],
       state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||''])),
     csvSection('Allergies', ['Allergen','Severity','Reaction','Notes'],
@@ -1904,6 +1974,7 @@ function exportDataPDF(){
     ${symptomPages}
     ${page('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
     ${page('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
+    ${page('SILSI', ['Date','Notes'], state.silsi.map(s=>[fmtDate(s.date), s.notes||'']))}
     ${page('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
     ${page('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
   </body></html>`;
@@ -1916,7 +1987,10 @@ function exportDataPDF(){
   setTimeout(()=>win.print(), 300);
 }
 function clearData(){
-  state = {peakFlow:[],symptoms:[],surgeries:[],treatments:[],settings:{reminderEnabled:false,reminderTime:'20:00',unit:'L/min'}};
+  state = {
+    peakFlow:[], oxygen:[], symptoms:[], surgeries:[], silsi:[], treatments:[], allergies:[], documents:[],
+    careInfo: defaultCareInfo(), settings: defaultSettings()
+  };
   saveState(); closeModal(); renderAll(); toast('All data cleared');
 }
 
