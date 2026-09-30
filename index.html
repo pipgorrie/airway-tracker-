@@ -281,6 +281,7 @@
 
   <!-- TODAY -->
   <section class="view active" id="view-today">
+    <div id="todayIntro"></div>
     <div id="todayBanners"></div>
 
     <div class="quick-actions">
@@ -321,6 +322,7 @@
 
   <!-- PEAK FLOW -->
   <section class="view" id="view-peakflow">
+    <div id="pfIntro"></div>
     <div class="card">
       <div class="grid2" style="margin-bottom:14px;">
         <div>
@@ -356,6 +358,7 @@
 
   <!-- OXYGEN -->
   <section class="view" id="view-oxygen">
+    <div id="oxIntro"></div>
     <div class="card">
       <div class="grid2" style="margin-bottom:14px;">
         <div>
@@ -387,6 +390,7 @@
 
   <!-- SYMPTOMS -->
   <section class="view" id="view-symptoms">
+    <div id="symIntro"></div>
     <div class="card">
       <div id="symViewToggle"></div>
       <div id="symChartWrap" class="chart-wrap"><svg class="chart" id="symChart" viewBox="0 0 340 160"></svg></div>
@@ -412,6 +416,7 @@
 
   <!-- MEDICAL -->
   <section class="view" id="view-surgery">
+    <div id="medIntro"></div>
     <div class="segmented">
       <button class="active" data-seg="surgeries" onclick="setSurgerySeg('surgeries')">Surgeries</button>
       <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
@@ -498,6 +503,11 @@ function defaultSettings(){
     reminderEnabled:false, reminderTime:'20:00', unit:'L/min',
     chartView: {pf:'graph', pfPct:'graph', oxygen:'graph', symptoms:'graph'}, // 'graph' or 'table', per chart
     maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
+    introDismissed: false, // "How to use this app" card on Today — dismissed once read, reopenable from Settings
+    introDismissedPF: false, // per-tab "how this page works" intro cards — same dismiss/reopen pattern
+    introDismissedOxygen: false,
+    introDismissedSymptoms: false,
+    introDismissedMedical: false,
     // unlimited, user-editable list of symptoms/activities to rate each time symptoms are logged
     customSymptoms: [
       {id:'symp1', label:'Stridor / noisy breathing'},
@@ -592,8 +602,8 @@ function setSurgerySeg(seg){
   document.getElementById('seg-documents').style.display = seg==='documents' ? 'block':'none';
   document.getElementById('seg-careteam').style.display = seg==='careteam' ? 'block':'none';
 }
-function toggleInfo(){
-  const box = document.getElementById('scaleInfo');
+function toggleInfo(id='scaleInfo'){
+  const box = document.getElementById(id);
   box.style.display = box.style.display==='none' ? 'block':'none';
 }
 
@@ -1348,19 +1358,26 @@ function buildLineChart(svgEl, series, opts={}){
       svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#C97A3D" stroke-width="1.5" stroke-dasharray="3,3"/>`;
     }
   });
-  // optional threshold reference line (e.g. low-oxygen cutoff)
-  if(opts.threshold!==undefined){
-    const ty = sy(opts.threshold);
-    svg += `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W-padR}" y2="${ty.toFixed(1)}" stroke="#C1503A" stroke-width="1" stroke-dasharray="2,3"/>`;
-  }
+  // optional threshold reference line(s) — legacy single 'threshold' (e.g. low-oxygen cutoff),
+  // or 'thresholds':[{value,color,label}] (ascending by value) for multi-tier lines like PEF drop %
+  const thresholdLines = opts.thresholds || (opts.threshold!==undefined ? [{value:opts.threshold, color:'#C1503A'}] : []);
+  thresholdLines.forEach(t=>{
+    const ty = sy(t.value);
+    svg += `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W-padR}" y2="${ty.toFixed(1)}" stroke="${t.color}" stroke-width="1" stroke-dasharray="2,3"/>`;
+    if(t.label){
+      const labelDy = t.labelBelow ? 8 : -3;
+      svg += `<text x="${W-padR-2}" y="${(ty+labelDy).toFixed(1)}" font-size="8.5" fill="${t.color}" font-family="IBM Plex Sans" text-anchor="end">${t.label}</text>`;
+    }
+  });
   // series lines
   series.forEach(s=>{
     if(s.points.length===0) return;
     const pathD = s.points.map((p,i)=>`${i===0?'M':'L'}${sx(p.x.getTime()).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
     svg += `<path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
     s.points.forEach(p=>{
-      const below = opts.threshold!==undefined && p.y<opts.threshold;
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${below?'#C1503A':s.color}"/>`;
+      // most severe (lowest-value) threshold the point falls under wins the point's color
+      const tier = thresholdLines.find(t=>p.y<t.value);
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:s.color}"/>`;
     });
   });
   // y-axis labels
@@ -1399,9 +1416,89 @@ function isWithinDays(iso, days){
   const diff = (Date.now()-new Date(iso).getTime())/86400000;
   return diff>=0 && diff<=days;
 }
+// returns 20, 10, or null depending on how far a %-of-personal-best reading has dropped
+function pefDropTier(pct){
+  if(pct==null) return null;
+  if(pct < 80) return 20;
+  if(pct < 90) return 10;
+  return null;
+}
+
+function renderTodayIntro(){
+  const el = document.getElementById('todayIntro');
+  if(state.settings.introDismissed){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
+      <h2 style="margin-bottom:10px;">How to use this app</h2>
+      <div class="stack" style="gap:10px;margin-bottom:14px;">
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Today</strong> — your at-a-glance summary: latest PEF, symptoms, and any alerts (e.g. a drop in PEF, a post-op reminder).</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>PEF</strong> — log peak expiratory flow readings and see your trend over time, plus each reading as a % of your personal best once you've added one in Settings.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best PEF, turn on daily reminders, and export or delete your data.</p>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
+      <button class="btn btn-primary btn-sm" onclick="dismissTodayIntro()">Got it</button>
+    </div>`;
+}
+function dismissTodayIntro(){
+  state.settings.introDismissed = true;
+  saveState();
+  renderTodayIntro();
+}
+// generic dismissible "how this page works" intro card, reused across tabs
+function renderTabIntro(elId, settingsKey, title, bodyHtml){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(state.settings[settingsKey]){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
+      <h2 style="margin-bottom:8px;">${title}</h2>
+      <div style="font-size:13.5px;line-height:1.5;color:var(--ink);margin-bottom:12px;">${bodyHtml}</div>
+      <button class="btn btn-primary btn-sm" onclick="dismissTabIntro('${elId}','${settingsKey}')">Got it</button>
+    </div>`;
+}
+function dismissTabIntro(elId, settingsKey){
+  state.settings[settingsKey] = true;
+  saveState();
+  document.getElementById(elId).innerHTML = '';
+}
+function renderPfIntro(){
+  renderTabIntro('pfIntro', 'introDismissedPF', 'Using this page',
+    `This page tracks your peak expiratory flow (PEF) over time. Log a reading with <strong>Log PEF</strong> on the Today tab. Add your personal best PEF in Settings to see each reading as a % of that, with alerts for a 10% or 20%+ drop.`);
+}
+function renderOxIntro(){
+  renderTabIntro('oxIntro', 'introDismissedOxygen', 'Using this page',
+    `Track your oxygen saturation (SpO₂) here — optional, but useful if your care team wants it recorded. Log a reading from the <strong>Medical</strong> tab, under the SpO₂ section.`);
+}
+function renderSymIntro(){
+  renderTabIntro('symIntro', 'introDismissedSymptoms', 'Using this page',
+    `See how your symptoms change over time. Log a new entry from the <strong>Medical</strong> tab, under Symptoms — rate each item from 0 (none) to 4 (severe).`);
+}
+function renderMedIntro(){
+  renderTabIntro('medIntro', 'introDismissedMedical', 'Using this page',
+    `Keep a record of surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, and documents, plus your care team's details for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
+}
 
 function renderToday(){
+  renderTodayIntro();
   const banners = [];
+  const latestPF = state.peakFlow[state.peakFlow.length-1];
+  const maxPF = state.settings.maxPeakFlow;
+  // PEF drop banner — flags a noticeable drop from personal best
+  if(latestPF && maxPF){
+    const pct = Math.round((latestPF.value/maxPF)*100);
+    const tier = pefDropTier(pct);
+    if(tier){
+      banners.push(`
+        <div class="banner recovery">
+          <div class="banner-icon">📉</div>
+          <div>
+            <div class="banner-title">${tier===20 ? 'PEF down 20% or more' : 'PEF down 10%'} from personal best</div>
+            <div class="banner-body">Latest reading ${latestPF.value} L/min is ${pct}% of your personal best (${maxPF} L/min). ${tier===20 ? "Repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team." : 'Repeat the reading (best of 3 blows) and keep an eye on it over the next day or two.'}</div>
+          </div>
+        </div>`);
+    }
+  }
   // Post-surgery recovery banner
   const recentSurgery = [...state.surgeries].reverse().find(s=>isWithinDays(s.date,10));
   if(recentSurgery){
@@ -1437,8 +1534,8 @@ function renderToday(){
   }
   document.getElementById('todayBanners').innerHTML = banners.join('');
 
-  const latest = state.peakFlow[state.peakFlow.length-1];
-  const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
+  const latest = latestPF;
+  const max = maxPF || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
 
@@ -1472,6 +1569,7 @@ function renderToday(){
 }
 
 function renderPeakFlowTab(){
+  renderPfIntro();
   const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   const latest = state.peakFlow[state.peakFlow.length-1];
   document.getElementById('pfMax').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
@@ -1506,20 +1604,27 @@ function renderPeakFlowTab(){
     const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
     const pctView = state.settings.chartView.pfPct || 'graph';
     pctBody.innerHTML = `
-      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span></div>
+      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':latestPct<90?'var(--sev2)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span>${pefDropTier(latestPct)?`<span class="kind-tag" style="background:${pefDropTier(latestPct)===20?'var(--sev4)':'var(--sev2)'};color:#fff;margin-left:8px;vertical-align:middle;">↓${pefDropTier(latestPct)}%+</span>`:''}</div>
       <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
       ${chartViewToggleHtml('pfPct')}
       <div id="pfPctChartWrap" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
       <div id="pfPctTableWrap" style="display:${pctView==='table'?'block':'none'};"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
-        <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 50%</span>
+        <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
+        <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
-      </p>`;
+      </p>
+      <button class="info-toggle" onclick="toggleInfo('pfDropInfo')">What should I do about a drop? ▾</button>
+      <div class="info-box" id="pfDropInfo" style="display:none;">
+        <p style="margin-bottom:8px;"><strong>10%+ drop</strong> — take a repeat reading (best of 3 blows) to rule out technique. Note any symptoms and keep an eye on it over the next day or two.</p>
+        <p style="margin-bottom:8px;"><strong>20%+ drop</strong> — repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team — sooner if you're symptomatic.</p>
+        <p>Seek urgent care if you have severe breathlessness, are struggling to speak, or feel you can't get enough air, regardless of your PEF reading.</p>
+      </div>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, threshold:50});
+      buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
       document.getElementById('pfPctTableWrap').innerHTML = simpleTable(['Date','% of personal best'],
         [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
@@ -1532,11 +1637,13 @@ function renderPeakFlowTab(){
   }else{
     listEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
+      const tier = pct!==null ? pefDropTier(pct) : null;
+      const tierTag = tier ? ` <span class="kind-tag" style="background:${tier===20?'var(--sev4)':'var(--sev2)'};color:#fff;">↓${tier}%+</span>` : '';
       return `
       <div class="list-item">
         <div class="li-main">
           <div class="li-date">${fmtDateTime(r.date)}</div>
-          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}</div>
+          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}${tierTag}</div>
           ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
         </div>
         <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
@@ -1546,6 +1653,7 @@ function renderPeakFlowTab(){
 }
 
 function renderOxygenTab(){
+  renderOxIntro();
   const readings = getCombinedOxygenReadings();
   const latest = readings.length ? readings[readings.length-1].value : null;
   const low = readings.length ? Math.min(...readings.map(r=>r.value)) : null;
@@ -1600,6 +1708,7 @@ function renderOxygenTab(){
 }
 
 function renderSymptomsTab(){
+  renderSymIntro();
   // plots whatever is in the current symptom list (unlimited, user-editable) by matching each entry's snapshot to its id
   const defs = state.settings.customSymptoms.map((c,i)=>[c.id, c.label, symptomColor(i)]);
   document.getElementById('symViewToggle').innerHTML = chartViewToggleHtml('symptoms');
@@ -1664,6 +1773,7 @@ function renderSymptomsTab(){
 }
 
 function renderSurgeryTab(){
+  renderMedIntro();
   const listEl = document.getElementById('surgeryList');
   if(!state.surgeries.length){
     listEl.innerHTML = `<div class="empty"><span class="eicon">🏥</span>No surgeries logged yet.</div>`;
@@ -1742,6 +1852,7 @@ function openSettings(){
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
 
     <div class="stack">
+      <button class="btn btn-outline" onclick="showAllIntrosAgain()">Show "How to use this app" instructions again</button>
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
       <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.')) clearData();">Delete all data</button>
@@ -1752,6 +1863,14 @@ function openSettings(){
       Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared.
     </div>
   `);
+}
+function showAllIntrosAgain(){
+  state.settings.introDismissed = false;
+  state.settings.introDismissedPF = false;
+  state.settings.introDismissedOxygen = false;
+  state.settings.introDismissedSymptoms = false;
+  state.settings.introDismissedMedical = false;
+  saveState(); closeModal(); switchTab('today'); renderAll();
 }
 function saveMaxPeakFlow(){
   const raw = document.getElementById('maxPFInput').value;
