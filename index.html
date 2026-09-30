@@ -286,7 +286,7 @@
 
     <div class="quick-actions">
       <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log PEF</button>
-      <button class="btn btn-ghost" onclick="openSettings()"><span class="qicon">🎯</span>Log Max PEF</button>
+      <button class="btn btn-ghost" onclick="openSettings()"><span class="qicon">🎯</span>Log Personal Best PEF</button>
     </div>
 
     <div class="card">
@@ -1768,10 +1768,10 @@ function openSettings(){
   renderModal(`
     <div class="modal-head"><h2>Settings</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
 
-    <h2 style="margin-bottom:8px;">Max PEF</h2>
+    <h2 style="margin-bottom:8px;">Personal Best PEF</h2>
     <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">Enter your known personal best peak expiratory flow (PEF). This will be used to show each reading as a % of your personal best. Stored on this device, never shared.</p>
     <div class="field">
-      <label class="field-label">Max PEF (L/min)</label>
+      <label class="field-label">Personal Best PEF (L/min)</label>
       <input type="number" id="maxPFInput" placeholder="e.g. 480" value="${state.settings.maxPeakFlow??''}">
     </div>
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
@@ -1791,9 +1791,9 @@ function openSettings(){
 function saveMaxPeakFlow(){
   const raw = document.getElementById('maxPFInput').value;
   const value = raw!=='' ? parseFloat(raw) : null;
-  if(value!==null && (isNaN(value) || value<=0)){ toast('Enter a valid max PEF'); return; }
+  if(value!==null && (isNaN(value) || value<=0)){ toast('Enter a valid personal best PEF'); return; }
   state.settings.maxPeakFlow = value;
-  saveState(); closeModal(); renderAll(); toast('Max PEF saved');
+  saveState(); closeModal(); renderAll(); toast('Personal Best PEF saved');
 }
 
 function csvCell(v){
