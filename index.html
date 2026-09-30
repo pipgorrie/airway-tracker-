@@ -1593,7 +1593,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, yStep:10, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, yStep:20, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
       document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
     }
