@@ -1407,10 +1407,6 @@ function isSurgeryDay(iso){
     return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && sd.getDate()===d.getDate();
   });
 }
-function isWithinDays(iso, days){
-  const diff = (Date.now()-new Date(iso).getTime())/86400000;
-  return diff>=0 && diff<=days;
-}
 // returns 20, 10, or null depending on how far a %-of-personal-best reading has dropped
 function pefDropTier(pct){
   if(pct==null) return null;
@@ -1465,38 +1461,6 @@ function renderToday(){
   const banners = [];
   const latestPF = state.peakFlow[state.peakFlow.length-1];
   const maxPF = state.settings.maxPeakFlow;
-  // PEF drop banner — flags a noticeable drop from personal best
-  if(latestPF && maxPF){
-    const pct = Math.round((latestPF.value/maxPF)*100);
-    const tier = pefDropTier(pct);
-    if(tier){
-      banners.push(`
-        <div class="banner recovery">
-          <div class="banner-icon">📉</div>
-          <div>
-            <div class="banner-title">${tier===20 ? 'PEF down 20% or more' : 'PEF down 10%'} from personal best</div>
-            <div class="banner-body">Latest reading ${latestPF.value} L/min is ${pct}% of your personal best (${maxPF} L/min). ${tier===20 ? "Repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team." : 'Repeat the reading (best of 3 blows) and keep an eye on it over the next day or two.'}</div>
-          </div>
-        </div>`);
-    }
-  }
-  // Post-surgery recovery banner
-  const recentSurgery = [...state.surgeries].reverse().find(s=>isWithinDays(s.date,10));
-  if(recentSurgery){
-    const dayNum = Math.floor((Date.now()-new Date(recentSurgery.date).getTime())/86400000);
-    const isSurgeryDay = dayNum===0;
-    banners.push(`
-      <div class="banner recovery">
-        <div class="banner-icon">🌿</div>
-        <div>
-          <div class="banner-title">${isSurgeryDay ? "Surgery day" : "Day "+dayNum+" post-op"} — ${recentSurgery.type}</div>
-          <div class="banner-body">${isSurgeryDay
-            ? "Take a peak expiratory flow (PEF) reading today as your post-surgery baseline, if your care team has approved it."
-            : "Follow your surgeon's / discharge instructions."}</div>
-          <button class="link" onclick="openPeakFlowModal()">Log PEF</button>
-        </div>
-      </div>`);
-  }
   // Daily reminder banner
   if(state.settings.reminderEnabled){
     const lastPF = state.peakFlow[state.peakFlow.length-1];
