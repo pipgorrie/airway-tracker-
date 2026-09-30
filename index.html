@@ -291,7 +291,7 @@
 
     <div class="card">
       <div class="row" style="margin-bottom:10px;">
-        <h2>PEF</h2>
+        <h2>Peak expiratory flow (PEF)</h2>
         <button class="btn btn-sm btn-outline" onclick="switchTab('peakflow')">View trend</button>
       </div>
       <div class="grid2">
@@ -304,6 +304,14 @@
           <div class="stat-label">Personal best</div>
         </div>
       </div>
+      <div id="todayPfChartWrap" class="chart-wrap" style="margin-top:12px;"><svg class="chart" id="todayPfChart" viewBox="0 0 340 160"></svg></div>
+    </div>
+
+    <div class="card" id="todayPfPercentCard">
+      <div class="row" style="margin-bottom:10px;">
+        <h2>% of personal best</h2>
+      </div>
+      <div id="todayPfPercentBody"></div>
     </div>
 
     <div class="card">
@@ -1538,6 +1546,9 @@ function renderToday(){
   const max = maxPF || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
+  const todayPfMarkers = state.surgeries.map(s=>new Date(s.date));
+  buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markers:todayPfMarkers});
+  renderPfPercentBody('todayPfPercentBody', 'todayPf', todayPfMarkers);
 
   const latestSym = state.symptoms[state.symptoms.length-1];
   const sumEl = document.getElementById('todaySymptomSummary');
@@ -1568,6 +1579,54 @@ function renderToday(){
   }else{ upEl.style.display='none'; }
 }
 
+// renders the "% of personal best" card body into any container — idPrefix keeps each
+// instance's inner chart/table/info-box ids unique so the same card can appear on multiple views
+function renderPfPercentBody(bodyElId, idPrefix, markers){
+  const maxPF = state.settings.maxPeakFlow;
+  const pctBody = document.getElementById(bodyElId);
+  if(!pctBody) return;
+  if(!maxPF){
+    pctBody.innerHTML = `
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your personal best peak expiratory flow (PEF) (or a value given by your care team) in Settings to see each reading as a % of that.</p>
+      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add personal best PEF</button>`;
+  }else if(!state.peakFlow.length){
+    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a PEF reading to see your % of personal best.</div>`;
+  }else{
+    const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
+    const latestReading = withPct[withPct.length-1];
+    const latestPct = latestReading.pct;
+    const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
+    const pctView = state.settings.chartView.pfPct || 'graph';
+    const chartId = idPrefix+'PctChart', chartWrapId = idPrefix+'PctChartWrap', tableWrapId = idPrefix+'PctTableWrap', infoId = idPrefix+'DropInfo';
+    pctBody.innerHTML = `
+      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':latestPct<90?'var(--sev2)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span>${pefDropTier(latestPct)?`<span class="kind-tag" style="background:${pefDropTier(latestPct)===20?'var(--sev4)':'var(--sev2)'};color:#fff;margin-left:8px;vertical-align:middle;">↓${pefDropTier(latestPct)}%+</span>`:''}</div>
+      <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
+      ${chartViewToggleHtml('pfPct')}
+      <div id="${chartWrapId}" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="${chartId}" viewBox="0 0 340 160"></svg></div>
+      <div id="${tableWrapId}" style="display:${pctView==='table'?'block':'none'};"></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
+        <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
+        <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
+        % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
+      </p>
+      <button class="info-toggle" onclick="toggleInfo('${infoId}')">What should I do about a drop? ▾</button>
+      <div class="info-box" id="${infoId}" style="display:none;">
+        <p style="margin-bottom:8px;"><strong>10%+ drop</strong> — take a repeat reading (best of 3 blows) to rule out technique. Note any symptoms and keep an eye on it over the next day or two.</p>
+        <p style="margin-bottom:8px;"><strong>20%+ drop</strong> — repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team — sooner if you're symptomatic.</p>
+        <p>Seek urgent care if you have severe breathlessness, are struggling to speak, or feel you can't get enough air, regardless of your PEF reading.</p>
+      </div>`;
+    if(pctView==='graph'){
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
+    }else{
+      document.getElementById(tableWrapId).innerHTML = simpleTable(['Date','% of personal best'],
+        [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
+    }
+  }
+}
+
 function renderPeakFlowTab(){
   renderPfIntro();
   const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
@@ -1588,49 +1647,9 @@ function renderPeakFlowTab(){
       [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
   }
 
-  // % of max peak flow
-  const maxPF = state.settings.maxPeakFlow;
-  const pctBody = document.getElementById('pfPercentBody');
-  if(!maxPF){
-    pctBody.innerHTML = `
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Add your personal best peak expiratory flow (PEF) (or a value given by your care team) in Settings to see each reading as a % of that.</p>
-      <button class="btn btn-outline btn-sm" onclick="openSettings()">Add personal best PEF</button>`;
-  }else if(!state.peakFlow.length){
-    pctBody.innerHTML = `<div class="empty"><span class="eicon">📊</span>Log a PEF reading to see your % of personal best.</div>`;
-  }else{
-    const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
-    const latestReading = withPct[withPct.length-1];
-    const latestPct = latestReading.pct;
-    const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
-    const pctView = state.settings.chartView.pfPct || 'graph';
-    pctBody.innerHTML = `
-      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':latestPct<90?'var(--sev2)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span>${pefDropTier(latestPct)?`<span class="kind-tag" style="background:${pefDropTier(latestPct)===20?'var(--sev4)':'var(--sev2)'};color:#fff;margin-left:8px;vertical-align:middle;">↓${pefDropTier(latestPct)}%+</span>`:''}</div>
-      <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
-      ${chartViewToggleHtml('pfPct')}
-      <div id="pfPctChartWrap" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="pfPctChart" viewBox="0 0 340 160"></svg></div>
-      <div id="pfPctTableWrap" style="display:${pctView==='table'?'block':'none'};"></div>
-      <div class="chart-legend">
-        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
-        <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
-        <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
-      </div>
-      <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
-        % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
-      </p>
-      <button class="info-toggle" onclick="toggleInfo('pfDropInfo')">What should I do about a drop? ▾</button>
-      <div class="info-box" id="pfDropInfo" style="display:none;">
-        <p style="margin-bottom:8px;"><strong>10%+ drop</strong> — take a repeat reading (best of 3 blows) to rule out technique. Note any symptoms and keep an eye on it over the next day or two.</p>
-        <p style="margin-bottom:8px;"><strong>20%+ drop</strong> — repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team — sooner if you're symptomatic.</p>
-        <p>Seek urgent care if you have severe breathlessness, are struggling to speak, or feel you can't get enough air, regardless of your PEF reading.</p>
-      </div>`;
-    if(pctView==='graph'){
-      buildLineChart(document.getElementById('pfPctChart'), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
-    }else{
-      document.getElementById('pfPctTableWrap').innerHTML = simpleTable(['Date','% of personal best'],
-        [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
-    }
-  }
+  renderPfPercentBody('pfPercentBody', 'pf', markers);
 
+  const maxPF = state.settings.maxPeakFlow;
   const listEl = document.getElementById('pfList');
   if(!state.peakFlow.length){
     listEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
