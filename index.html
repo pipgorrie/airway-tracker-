@@ -20,6 +20,7 @@
     --primary-soft:#DCEBE9;
     --amber:#C97A3D;
     --amber-soft:#F3E3D3;
+    --surgery:#2E6FB8;
     --sev0:#4C8C6B;
     --sev1:#8FA84B;
     --sev2:#D9A441;
@@ -308,7 +309,7 @@
       <div id="todayPfTableWrap" style="display:none;"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
-        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+        <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
       </div>
     </div>
 
@@ -321,6 +322,9 @@
 
     <div class="card">
       <h2 style="margin-bottom:6px;">PEF history</h2>
+      <p style="font-size:12px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">
+        <span class="kind-tag" style="background:var(--sev2);color:#fff;">↓10%+</span> and <span class="kind-tag" style="background:var(--sev4);color:#fff;">↓20%+</span> flag readings that far below your personal best.
+      </p>
       <div id="todayPfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
     </div>
 
@@ -350,7 +354,7 @@
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:#5C8A9E;"></span>SpO₂ %</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>Below 92%</span>
-        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+        <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         Readings below 92% are flagged for your awareness only — this isn't a diagnosis. If a reading concerns you, especially with worsening breathlessness, contact your care team or seek urgent care.
@@ -1361,7 +1365,7 @@ function buildLineChart(svgEl, series, opts={}){
   (opts.markers||[]).forEach(m=>{
     const mx = sx(m.getTime());
     if(mx>=padL && mx<=W-padR){
-      svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#C97A3D" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+      svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#2E6FB8" stroke-width="1.5" stroke-dasharray="3,3"/>`;
     }
   });
   // optional threshold reference line(s) — legacy single 'threshold' (e.g. low-oxygen cutoff),
@@ -1385,7 +1389,7 @@ function buildLineChart(svgEl, series, opts={}){
       // otherwise a point falling on a surgery date is colored to match the marker
       const tier = thresholdLines.find(t=>p.y<t.value);
       const onMarkerDay = !tier && (opts.markers||[]).some(m=>m.toDateString()===p.x.toDateString());
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:onMarkerDay?'#C97A3D':s.color}"/>`;
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:onMarkerDay?'#2E6FB8':s.color}"/>`;
     });
   });
   // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
@@ -1583,7 +1587,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
         <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
         <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
-        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+        <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
