@@ -1340,10 +1340,22 @@ function buildLineChart(svgEl, series, opts={}){
   const sy = y => (H-padB) - ( (y-minY)/(maxY-minY) ) * (H-padT-padB);
 
   let svg = '';
-  // gridlines
-  for(let i=0;i<=3;i++){
-    const gy = padT + i*(H-padT-padB)/3;
-    svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#E3E8E5" stroke-width="1"/>`;
+  // gridlines — evenly-spaced multiples of opts.yStep when given (labeled below),
+  // otherwise the old 4-unlabeled-line layout
+  const yStep = opts.yStep;
+  const gridYs = yStep
+    ? (()=>{ const vs=[]; const start=Math.ceil((minY+pad)/yStep)*yStep; for(let v=start; v<=maxY-pad+1e-9; v+=yStep) vs.push(v); return vs; })()
+    : null;
+  if(gridYs){
+    gridYs.forEach(v=>{
+      const gy = sy(v);
+      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#E3E8E5" stroke-width="1"/>`;
+    });
+  }else{
+    for(let i=0;i<=3;i++){
+      const gy = padT + i*(H-padT-padB)/3;
+      svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#E3E8E5" stroke-width="1"/>`;
+    }
   }
   // surgery markers
   (opts.markers||[]).forEach(m=>{
@@ -1376,9 +1388,15 @@ function buildLineChart(svgEl, series, opts={}){
       svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:onMarkerDay?'#C97A3D':s.color}"/>`;
     });
   });
-  // y-axis labels
-  svg += `<text x="4" y="${sy(maxY-pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(maxY-pad)}</text>`;
-  svg += `<text x="4" y="${sy(minY+pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(minY+pad)}</text>`;
+  // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
+  if(gridYs){
+    gridYs.forEach(v=>{
+      svg += `<text x="4" y="${sy(v).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(v)}</text>`;
+    });
+  }else{
+    svg += `<text x="4" y="${sy(maxY-pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(maxY-pad)}</text>`;
+    svg += `<text x="4" y="${sy(minY+pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(minY+pad)}</text>`;
+  }
   // x-axis labels (first/last)
   const first = new Date(minX), last = new Date(maxX);
   const fmt = d => d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
@@ -1565,12 +1583,13 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
         <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
         <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
         <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
+        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, yStep:10, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
       document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
     }
