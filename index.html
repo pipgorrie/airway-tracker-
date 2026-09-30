@@ -1540,7 +1540,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
     const latestPct = latestReading.pct;
     const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
     const pctView = state.settings.chartView.pfPct || 'graph';
-    const chartId = idPrefix+'PctChart', chartWrapId = idPrefix+'PctChartWrap', tableWrapId = idPrefix+'PctTableWrap', infoId = idPrefix+'DropInfo';
+    const chartId = idPrefix+'PctChart', chartWrapId = idPrefix+'PctChartWrap', tableWrapId = idPrefix+'PctTableWrap';
     pctBody.innerHTML = `
       <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':latestPct<90?'var(--sev2)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span>${pefDropTier(latestPct)?`<span class="kind-tag" style="background:${pefDropTier(latestPct)===20?'var(--sev4)':'var(--sev2)'};color:#fff;margin-left:8px;vertical-align:middle;">↓${pefDropTier(latestPct)}%+</span>`:''}</div>
       <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
@@ -1554,13 +1554,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
       </div>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:10px;line-height:1.5;">
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
-      </p>
-      <button class="info-toggle" onclick="toggleInfo('${infoId}')">What should I do about a drop? ▾</button>
-      <div class="info-box" id="${infoId}" style="display:none;">
-        <p style="margin-bottom:8px;"><strong>10%+ drop</strong> — take a repeat reading (best of 3 blows) to rule out technique. Note any symptoms and keep an eye on it over the next day or two.</p>
-        <p style="margin-bottom:8px;"><strong>20%+ drop</strong> — repeat the reading. If it stays down, or you notice increased stridor, breathlessness, or difficulty speaking, contact your care team — sooner if you're symptomatic.</p>
-        <p>Seek urgent care if you have severe breathlessness, are struggling to speak, or feel you can't get enough air, regardless of your PEF reading.</p>
-      </div>`;
+      </p>`;
     if(pctView==='graph'){
       buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
