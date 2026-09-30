@@ -292,7 +292,6 @@
     <div class="card">
       <div class="row" style="margin-bottom:10px;">
         <h2>Peak expiratory flow (PEF)</h2>
-        <button class="btn btn-sm btn-outline" onclick="switchTab('peakflow')">View trend</button>
       </div>
       <div class="grid2">
         <div>
@@ -304,7 +303,13 @@
           <div class="stat-label">Personal best</div>
         </div>
       </div>
-      <div id="todayPfChartWrap" class="chart-wrap" style="margin-top:12px;"><svg class="chart" id="todayPfChart" viewBox="0 0 340 160"></svg></div>
+      <div id="todayPfViewToggle" style="margin-top:12px;"></div>
+      <div id="todayPfChartWrap" class="chart-wrap"><svg class="chart" id="todayPfChart" viewBox="0 0 340 160"></svg></div>
+      <div id="todayPfTableWrap" style="display:none;"></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
+        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
+      </div>
     </div>
 
     <div class="card" id="todayPfPercentCard">
@@ -314,45 +319,14 @@
       <div id="todayPfPercentBody"></div>
     </div>
 
+    <div class="card">
+      <h2 style="margin-bottom:6px;">PEF history</h2>
+      <div id="todayPfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
+    </div>
+
     <div class="card" id="upcomingCard" style="display:none;">
       <h2 style="margin-bottom:10px;">Recent activity</h2>
       <div id="recentActivityList"></div>
-    </div>
-  </section>
-
-  <!-- PEAK FLOW -->
-  <section class="view" id="view-peakflow">
-    <div id="pfIntro"></div>
-    <div class="card">
-      <div class="grid2" style="margin-bottom:14px;">
-        <div>
-          <div class="stat-big" id="pfMax">—<span class="stat-unit">L/min</span></div>
-          <div class="stat-label">Personal best PEF</div>
-        </div>
-        <div>
-          <div class="stat-big" id="pfLatest">—<span class="stat-unit">L/min</span></div>
-          <div class="stat-label">Latest reading</div>
-        </div>
-      </div>
-      <div id="pfViewToggle"></div>
-      <div id="pfChartWrap" class="chart-wrap"><svg class="chart" id="pfChart" viewBox="0 0 340 160"></svg></div>
-      <div id="pfTableWrap" style="display:none;"></div>
-      <div class="chart-legend">
-        <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
-        <span><span class="legend-dot" style="background:var(--amber);"></span>Surgery date</span>
-      </div>
-    </div>
-
-    <div class="card" id="pfPercentCard">
-      <div class="row" style="margin-bottom:10px;">
-        <h2>% of personal best</h2>
-      </div>
-      <div id="pfPercentBody"></div>
-    </div>
-
-    <div class="card">
-      <h2 style="margin-bottom:6px;">History</h2>
-      <div id="pfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
     </div>
   </section>
 
@@ -487,7 +461,6 @@
 
 <nav class="tabbar">
   <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="ticon">🏠</span>Today</button>
-  <button class="tab-btn" data-tab="peakflow" onclick="switchTab('peakflow')"><span class="ticon">📈</span>PEF</button>
   <button class="tab-btn" data-tab="surgery" onclick="switchTab('surgery')"><span class="ticon">🏥</span>Medical</button>
 </nav>
 
@@ -1390,7 +1363,6 @@ function buildLineChart(svgEl, series, opts={}){
 function renderAll(){
   if(!stateLoaded) return;
   renderToday();
-  renderPeakFlowTab();
   renderOxygenTab();
   renderSymptomsTab();
   renderSurgeryTab();
@@ -1421,10 +1393,9 @@ function renderTodayIntro(){
     <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
       <h2 style="margin-bottom:10px;">How to use this app</h2>
       <div class="stack" style="gap:10px;margin-bottom:14px;">
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Today</strong> — your at-a-glance summary: latest peak expiratory flow (PEF), symptoms, and any alerts (e.g. a drop in PEF, a post-op reminder).</p>
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Peak expiratory flow (PEF)</strong> — log readings and see your trend over time, plus each reading as a % of your personal best once you've added one in Settings.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Today</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (with 10%/20% drop indicators once you've added a personal best in Settings), and your full reading history.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), turn on daily reminders, and export or delete your data.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), and export or delete your data.</p>
       </div>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
     </div>`;
@@ -1438,10 +1409,6 @@ function renderTabIntro(elId, title, bodyHtml){
       <h2 style="margin-bottom:8px;">${title}</h2>
       <div style="font-size:13.5px;line-height:1.5;color:var(--ink);">${bodyHtml}</div>
     </div>`;
-}
-function renderPfIntro(){
-  renderTabIntro('pfIntro', 'Using this page',
-    `This page tracks your peak expiratory flow (PEF) over time. Log a reading with <strong>Log PEF</strong> on the Today tab. Add your personal best PEF in Settings to see each reading as a % of that, with alerts for a 10% or 20%+ drop.`);
 }
 function renderOxIntro(){
   renderTabIntro('oxIntro', 'Using this page',
@@ -1484,8 +1451,39 @@ function renderToday(){
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
   const todayPfMarkers = state.surgeries.map(s=>new Date(s.date));
-  buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markers:todayPfMarkers});
+
+  document.getElementById('todayPfViewToggle').innerHTML = chartViewToggleHtml('pf');
+  const pfView = state.settings.chartView.pf || 'graph';
+  document.getElementById('todayPfChartWrap').style.display = pfView==='graph' ? 'block':'none';
+  document.getElementById('todayPfTableWrap').style.display = pfView==='table' ? 'block':'none';
+  if(pfView==='graph'){
+    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markers:todayPfMarkers});
+  }else{
+    document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery'],
+      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
+  }
+
   renderPfPercentBody('todayPfPercentBody', 'todayPf', todayPfMarkers);
+
+  const pfListEl = document.getElementById('todayPfList');
+  if(!state.peakFlow.length){
+    pfListEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
+  }else{
+    pfListEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
+      const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
+      const tier = pct!==null ? pefDropTier(pct) : null;
+      const tierTag = tier ? ` <span class="kind-tag" style="background:${tier===20?'var(--sev4)':'var(--sev2)'};color:#fff;">↓${tier}%+</span>` : '';
+      return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDateTime(r.date)}</div>
+          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}${tierTag}</div>
+          ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
+      </div>`;
+    }).join('');
+  }
 
   // recent activity feed (last 4 across everything)
   const combined = [
@@ -1548,50 +1546,6 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
       document.getElementById(tableWrapId).innerHTML = simpleTable(['Date','% of personal best'],
         [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
     }
-  }
-}
-
-function renderPeakFlowTab(){
-  renderPfIntro();
-  const max = state.settings.maxPeakFlow || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
-  const latest = state.peakFlow[state.peakFlow.length-1];
-  document.getElementById('pfMax').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
-  document.getElementById('pfLatest').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
-
-  const markers = state.surgeries.map(s=>new Date(s.date));
-  document.getElementById('pfViewToggle').innerHTML = chartViewToggleHtml('pf');
-  const pfView = state.settings.chartView.pf || 'graph';
-  document.getElementById('pfChartWrap').style.display = pfView==='graph' ? 'block':'none';
-  document.getElementById('pfTableWrap').style.display = pfView==='table' ? 'block':'none';
-  if(pfView==='graph'){
-    const pts = state.peakFlow.map(r=>({x:new Date(r.date), y:r.value}));
-    buildLineChart(document.getElementById('pfChart'), [{points:pts,color:'#0F6E68'}], {markers});
-  }else{
-    document.getElementById('pfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery'],
-      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—']));
-  }
-
-  renderPfPercentBody('pfPercentBody', 'pf', markers);
-
-  const maxPF = state.settings.maxPeakFlow;
-  const listEl = document.getElementById('pfList');
-  if(!state.peakFlow.length){
-    listEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
-  }else{
-    listEl.innerHTML = [...state.peakFlow].reverse().map(r=>{
-      const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
-      const tier = pct!==null ? pefDropTier(pct) : null;
-      const tierTag = tier ? ` <span class="kind-tag" style="background:${tier===20?'var(--sev4)':'var(--sev2)'};color:#fff;">↓${tier}%+</span>` : '';
-      return `
-      <div class="list-item">
-        <div class="li-main">
-          <div class="li-date">${fmtDateTime(r.date)}</div>
-          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}${tierTag}</div>
-          ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
-        </div>
-        <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
-      </div>`;
-    }).join('');
   }
 }
 
@@ -1824,13 +1778,16 @@ function csvSection(title, headers, rows){
   return lines.join('\n');
 }
 function exportDataCSV(){
+  const maxPF = state.settings.maxPeakFlow;
   const sections = [
     csvSection('PEF', ['Date','Value (L/min)','Note'],
       state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
+    csvSection('% of personal best', ['Date','% of personal best'],
+      maxPF ? state.peakFlow.map(r=>[fmtDateTime(r.date), Math.round((r.value/maxPF)*100)]) : []),
+    ...state.settings.customSymptoms.map(def => csvSection(`Symptom: ${def.label}`, ['Date','Value (0-4)'],
+      state.symptoms.map(s=>{ const entry=(s.custom||[]).find(c=>c.id===def.id); return entry ? [fmtDate(s.date), entry.value] : null; }).filter(Boolean))),
     csvSection('SpO2', ['Date','Value (%)','Note'],
       getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||''])),
-    csvSection('Symptoms', ['Date','Symptoms'],
-      state.symptoms.map(s=>[fmtDate(s.date), (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')])),
     csvSection('Surgeries', ['Date','Procedure','Location','Notes'],
       state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||''])),
     csvSection('Treatments', ['Started','Ended','Name','Kind','Notes'],
@@ -1846,31 +1803,47 @@ function exportDataCSV(){
   a.click();
 }
 function exportDataPDF(){
-  const table = (title, headers, rows) => `
-    <h2>${title}</h2>
-    ${rows.length ? `<table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(String(c??''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-    : `<p class="empty-note">No data logged.</p>`}`;
+  // each entry becomes its own printed page, in order — PEF and % of personal best first,
+  // then one page per symptom (plain Date/Value columns so the numbers are easy to chart),
+  // then the remaining record types
+  const page = (title, headers, rows) => `
+    <div class="page">
+      <h2>${title}</h2>
+      ${rows.length ? `<table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(String(c??''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+      : `<p class="empty-note">No data logged.</p>`}
+    </div>`;
+
+  const maxPF = state.settings.maxPeakFlow;
+  const symptomPages = state.settings.customSymptoms.map(def => {
+    const rows = state.symptoms
+      .map(s => { const entry = (s.custom||[]).find(c=>c.id===def.id); return entry ? [fmtDate(s.date), entry.value] : null; })
+      .filter(Boolean);
+    return page(`Symptom: ${def.label}`, ['Date','Value (0-4)'], rows);
+  }).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Airway export</title>
   <style>
     body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#16262B;padding:24px;}
     h1{margin-bottom:2px;} .sub{color:#57696E;margin-bottom:20px;}
-    h2{margin-top:26px;margin-bottom:8px;border-bottom:1px solid #DDE3DF;padding-bottom:4px;}
+    h2{margin-top:0;margin-bottom:8px;border-bottom:1px solid #DDE3DF;padding-bottom:4px;}
     table{border-collapse:collapse;width:100%;font-size:12.5px;margin-bottom:6px;}
     th,td{border:1px solid #DDE3DF;padding:6px 8px;text-align:left;}
     th{background:#EAF0EE;}
     .empty-note{color:#8B9A9D;font-size:13px;}
-    @media print{ body{padding:0;} }
+    .page{padding-top:20px;}
+    .page:not(:first-of-type){page-break-before:always;}
+    @media print{ body{padding:0;} .page:first-of-type{padding-top:0;} }
   </style></head><body>
     <h1>Airway — Stenosis Tracker export</h1>
     <div class="sub">Generated ${fmtDate(todayISO())}</div>
-    ${table('PEF', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
-    ${table('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
-    ${table('Symptoms', ['Date','Symptoms'], state.symptoms.map(s=>[fmtDate(s.date), (s.custom||[]).map(c=>`${c.label} ${c.value}`).join('; ')]))}
-    ${table('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
-    ${table('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
-    ${table('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
+    ${page('PEF', ['Date','Value (L/min)','Note'], state.peakFlow.map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
+    ${page('% of personal best', ['Date','% of personal best'], maxPF ? state.peakFlow.map(r=>[fmtDateTime(r.date), Math.round((r.value/maxPF)*100)]) : [])}
+    ${symptomPages}
+    ${page('SpO2', ['Date','Value (%)','Note'], getCombinedOxygenReadings().map(r=>[fmtDateTime(r.date), r.value, r.note||'']))}
+    ${page('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
+    ${page('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
+    ${page('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
   </body></html>`;
 
   const win = window.open('', '_blank');
