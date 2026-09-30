@@ -1289,6 +1289,25 @@ function simpleTable(headers, rows){
   </table></div>`;
 }
 
+// % of personal best table — colors each value by its drop tier (10%+ amber, 20%+ red), matching the graph
+function pctTable(rows){
+  if(!rows.length) return `<div class="empty"><span class="eicon">📊</span>No data yet.</div>`;
+  return `<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;font-size:13px;">
+    <thead><tr>
+      <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">Date</th>
+      <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">% of personal best</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>{
+      const tier = pefDropTier(r.pct);
+      const color = tier===20 ? 'var(--sev4)' : tier===10 ? 'var(--sev2)' : 'var(--ink)';
+      return `<tr>
+        <td style="padding:6px 8px 6px 0;white-space:nowrap;">${escapeHtml(fmtDateTime(r.date))}</td>
+        <td style="padding:6px 8px 6px 0;white-space:nowrap;color:${color};font-weight:${tier?'700':'400'};">${r.pct}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
 /* ============ CHARTS (lightweight inline SVG) ============ */
 function buildLineChart(svgEl, series, opts={}){
   // series: [{points:[{x:Date,y:number}], color, markers:bool}]
@@ -1545,8 +1564,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markers){
     if(pctView==='graph'){
       buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markers, minY:0, maxY:100, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
     }else{
-      document.getElementById(tableWrapId).innerHTML = simpleTable(['Date','% of personal best'],
-        [...withPct].reverse().map(r=>[fmtDateTime(r.date), r.pct]));
+      document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
     }
   }
 }
