@@ -514,6 +514,7 @@ let state = {
 };
 let stateLoaded = false;
 let todayPfListExpanded = false; // UI-only: whether the Today PEF history list shows all readings or just the latest 5
+let todayActivityExpanded = false; // UI-only: whether the Today Recent activity list shows all entries or just the latest 5
 
 async function loadState(){
   try{
@@ -620,6 +621,10 @@ function deletePeakFlow(id){
 }
 function toggleTodayPfList(){
   todayPfListExpanded = !todayPfListExpanded;
+  renderToday();
+}
+function toggleTodayActivity(){
+  todayActivityExpanded = !todayActivityExpanded;
   renderToday();
 }
 
@@ -1521,7 +1526,7 @@ function renderToday(){
     pfListEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
   }else{
     const allReversed = [...state.peakFlow].reverse();
-    const shown = todayPfListExpanded ? allReversed : allReversed.slice(0,5);
+    const shown = todayPfListExpanded ? allReversed : allReversed.slice(0,3);
     const rowsHtml = shown.map(r=>{
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
       const tier = pct!==null ? pefDropTier(pct) : null;
@@ -1536,25 +1541,30 @@ function renderToday(){
         <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
       </div>`;
     }).join('');
-    const toggleHtml = allReversed.length>5
+    const toggleHtml = allReversed.length>3
       ? `<button class="info-toggle" style="margin-top:10px;" onclick="toggleTodayPfList()">${todayPfListExpanded ? 'Show fewer ▴' : `Show all ${allReversed.length} readings ▾`}</button>`
       : '';
     pfListEl.innerHTML = rowsHtml + toggleHtml;
   }
 
-  // recent activity feed (last 4 across everything)
+  // recent activity feed across everything
   const combined = [
     ...state.peakFlow.map(r=>({date:r.date, text:`PEF logged — ${r.value} L/min`})),
     ...state.oxygen.map(r=>({date:r.date, text:`SpO₂ logged — ${r.value}%`})),
     ...state.surgeries.map(r=>({date:r.date, text:`Surgery: ${r.type}`})),
     ...state.treatments.map(r=>({date:r.start+'T00:00', text:`${r.kind==='medication'?'Started medication':'Started diet'}: ${r.name}`})),
-  ].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4);
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const upEl = document.getElementById('upcomingCard');
   if(combined.length){
     upEl.style.display='block';
-    document.getElementById('recentActivityList').innerHTML = combined.map(c=>`
+    const shownActivity = todayActivityExpanded ? combined : combined.slice(0,3);
+    const activityRowsHtml = shownActivity.map(c=>`
       <div class="list-item"><div class="li-main"><div class="li-date">${fmtDate(c.date)}</div><div class="li-title" style="font-size:13.5px;">${c.text}</div></div></div>
     `).join('');
+    const activityToggleHtml = combined.length>3
+      ? `<button class="info-toggle" style="margin-top:10px;" onclick="toggleTodayActivity()">${todayActivityExpanded ? 'Show fewer ▴' : `Show all ${combined.length} ▾`}</button>`
+      : '';
+    document.getElementById('recentActivityList').innerHTML = activityRowsHtml + activityToggleHtml;
   }else{ upEl.style.display='none'; }
 }
 
