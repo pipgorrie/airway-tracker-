@@ -1324,6 +1324,7 @@ function buildLineChart(svgEl, series, opts={}){
     const mx = sx(m.getTime());
     if(mx>=padL && mx<=W-padR){
       svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="#C97A3D" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+      svg += `<circle cx="${mx}" cy="${padT}" r="3.5" fill="#C97A3D"/>`;
     }
   });
   // optional threshold reference line(s) — legacy single 'threshold' (e.g. low-oxygen cutoff),
