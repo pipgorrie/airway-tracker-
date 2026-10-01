@@ -509,8 +509,7 @@ function defaultCareInfo(){
     healthNumber: '', healthSystem: '', // e.g. "NHI number" + "NHI (New Zealand)", "NHS number" + "NHS (UK)", or "Medicare number" + "Medicare (Australia)"
     insuranceProvider: '', insurancePolicy: '', insuranceClaim: '', insurancePhone: '',
     gp: { name:'', clinic:'', phone:'', email:'', address:'' },
-    surgeon: { name:'', clinic:'', phone:'', email:'', address:'' },
-    nextOfKin: { name:'', relationship:'', phone:'', email:'', address:'' }
+    surgeon: { name:'', clinic:'', phone:'', email:'', address:'' }
   };
 }
 let state = {
@@ -522,7 +521,7 @@ let state = {
   treatments: [],       // {id, name, kind ('medication'|'diet'), start, end, notes}
   allergies: [],        // {id, allergen, reaction, severity, notes}
   documents: [],        // {id, date, title, kind ('paper'|'email'|'other'), note, linkedSurgeryId, thumb (small dataURL)} — full-size image stored separately per doc
-  careInfo: defaultCareInfo(), // health/insurance IDs, GP, surgeon, next of kin — device-local only
+  careInfo: defaultCareInfo(), // health/insurance IDs, GP, surgeon — device-local only
   settings: defaultSettings()
 };
 let stateLoaded = false;
@@ -543,7 +542,6 @@ async function loadState(){
       state.careInfo = Object.assign(careDefaults, parsedCare);
       state.careInfo.gp = Object.assign(careDefaults.gp, parsedCare.gp||{});
       state.careInfo.surgeon = Object.assign(careDefaults.surgeon, parsedCare.surgeon||{});
-      state.careInfo.nextOfKin = Object.assign(careDefaults.nextOfKin, parsedCare.nextOfKin||{});
     }
   }catch(e){ /* no data yet */ }
   stateLoaded = true;
@@ -1197,13 +1195,6 @@ function renderCareTeamTab(){
       {key:'phone', label:'Phone', type:'tel'},
       {key:'email', label:'Email', type:'email'},
       {key:'address', label:'Address'}
-    ]) +
-    contactCard('Next of kin', '👤', 'nextOfKin', c.nextOfKin, [
-      {key:'name', label:'Name'},
-      {key:'relationship', label:'Relationship'},
-      {key:'phone', label:'Phone', type:'tel'},
-      {key:'email', label:'Email', type:'email'},
-      {key:'address', label:'Address'}
     ]);
 }
 
@@ -1241,18 +1232,6 @@ const CARE_EDIT_CONFIG = {
       {key:'name', label:'Name', placeholder:'Dr. …'},
       {key:'clinic', label:'Hospital / clinic', placeholder:''},
       {key:'phone', label:'Phone', placeholder:'e.g. +61 2 9000 0000'},
-      {key:'email', label:'Email', placeholder:''},
-      {key:'address', label:'Address', placeholder:'Street, city, region, postcode, country', textarea:true}
-    ]
-  },
-  nextOfKin: {
-    title:'Next of kin',
-    getData: () => state.careInfo.nextOfKin,
-    save: (d) => { Object.assign(state.careInfo.nextOfKin, d); },
-    fields: [
-      {key:'name', label:'Name', placeholder:''},
-      {key:'relationship', label:'Relationship', placeholder:'e.g. Spouse, parent, sibling'},
-      {key:'phone', label:'Phone', placeholder:'e.g. +353 87 000 0000'},
       {key:'email', label:'Email', placeholder:''},
       {key:'address', label:'Address', placeholder:'Street, city, region, postcode, country', textarea:true}
     ]
