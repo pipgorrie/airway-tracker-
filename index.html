@@ -405,8 +405,6 @@
       <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
       <button data-seg="spo2" onclick="setSurgerySeg('spo2')">SpO₂ (optional)</button>
       <button data-seg="symptoms" onclick="setSurgerySeg('symptoms')">Symptoms</button>
-      <button data-seg="documents" onclick="setSurgerySeg('documents')">Docs</button>
-      <button data-seg="careteam" onclick="setSurgerySeg('careteam')">Care team</button>
     </div>
 
     <div id="seg-surgeries">
@@ -461,13 +459,23 @@
       </div>
     </div>
 
-    <div id="seg-documents" style="display:none;">
+  </section>
+
+  <!-- RECORDS -->
+  <section class="view" id="view-records">
+    <div id="recordsIntro"></div>
+    <div class="segmented">
+      <button class="active" data-recseg="documents" onclick="setRecordsSeg('documents')">Docs</button>
+      <button data-recseg="careteam" onclick="setRecordsSeg('careteam')">Care team</button>
+    </div>
+
+    <div id="recseg-documents">
       <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openDocumentModal()">+ Add a photo or document</button>
       <p style="font-size:12.5px;color:var(--ink-faint);margin:-8px 0 14px;">Photograph paperwork, screenshot an email, or upload a PDF — discharge summaries, prescriptions, referral letters, correspondence with your care team.</p>
       <div id="documentGrid"><div class="empty"><span class="eicon">📎</span>Nothing uploaded yet.</div></div>
     </div>
 
-    <div id="seg-careteam" style="display:none;">
+    <div id="recseg-careteam" style="display:none;">
       <p style="font-size:12.5px;color:var(--ink-faint);margin:0 0 14px;">Kept on this device only — handy to have ready before an appointment or an ER visit.</p>
       <div id="careTeamCards"></div>
     </div>
@@ -478,6 +486,7 @@
 <nav class="tabbar">
   <button class="tab-btn active" data-tab="today" onclick="switchTab('today')"><span class="ticon">🏠</span>Home</button>
   <button class="tab-btn" data-tab="surgery" onclick="switchTab('surgery')"><span class="ticon">🏥</span>Medical</button>
+  <button class="tab-btn" data-tab="records" onclick="switchTab('records')"><span class="ticon">📁</span>Records</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -585,8 +594,11 @@ function setSurgerySeg(seg){
   document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
   document.getElementById('seg-spo2').style.display = seg==='spo2' ? 'block':'none';
   document.getElementById('seg-symptoms').style.display = seg==='symptoms' ? 'block':'none';
-  document.getElementById('seg-documents').style.display = seg==='documents' ? 'block':'none';
-  document.getElementById('seg-careteam').style.display = seg==='careteam' ? 'block':'none';
+}
+function setRecordsSeg(seg){
+  document.querySelectorAll('#view-records .segmented button').forEach(b=>b.classList.toggle('active', b.dataset.recseg===seg));
+  document.getElementById('recseg-documents').style.display = seg==='documents' ? 'block':'none';
+  document.getElementById('recseg-careteam').style.display = seg==='careteam' ? 'block':'none';
 }
 function toggleInfo(id='scaleInfo'){
   const box = document.getElementById(id);
@@ -1090,6 +1102,7 @@ function linkedLabel(doc){
 }
 const DOC_KIND_LABEL = {paper:'Paper doc', email:'Email', other:'Other'};
 function renderDocumentsTab(){
+  renderRecordsIntro();
   const grid = document.getElementById('documentGrid');
   if(!state.documents.length){
     grid.innerHTML = `<div class="empty"><span class="eicon">📎</span>Nothing uploaded yet.</div>`;
@@ -1477,7 +1490,8 @@ function renderTodayIntro(){
       <h2 style="margin-bottom:10px;">How to use this app</h2>
       <div class="stack" style="gap:10px;margin-bottom:14px;">
         <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (with 10%/20% drop indicators once you've added a personal best in Settings), and your full reading history.</p>
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, symptoms, documents, and your care team's details.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, and symptoms.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Records</strong> — documents and your care team's details for quick reference at appointments or in an emergency.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), and export or delete your data.</p>
       </div>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
@@ -1504,7 +1518,11 @@ function renderSymIntro(){
 }
 function renderMedIntro(){
   renderTabIntro('medIntro', 'Using this page',
-    `Keep a record of surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, symptoms, and documents, plus your care team's details for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
+    `Keep a record of surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, and symptoms. Use the row of buttons below to switch sections.`);
+}
+function renderRecordsIntro(){
+  renderTabIntro('recordsIntro', 'Using this page',
+    `Keep documents and your care team's details handy for quick reference at appointments or in an emergency. Use the row of buttons below to switch sections.`);
 }
 
 function renderToday(){
