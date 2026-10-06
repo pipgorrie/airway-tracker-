@@ -310,6 +310,7 @@
       <div id="todayPfTableWrap" style="display:none;"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
+        <span id="todayPfZoneLegend" style="display:contents;"></span>
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
         <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
       </div>
@@ -325,7 +326,7 @@
     <div class="card">
       <h2 style="margin-bottom:6px;">PEF history</h2>
       <p style="font-size:12px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">
-        <span class="kind-tag" style="background:var(--sev2);color:#fff;">↓10%+</span> and <span class="kind-tag" style="background:var(--sev4);color:#fff;">↓20%+</span> flag readings that far below your personal best.
+        Colored tags flag readings more than 20% below your personal best: <span class="kind-tag" style="background:#D9B23A;color:#fff;">↓21–40%</span> <span class="kind-tag" style="background:#D97B3D;color:#fff;">↓41–50%</span> <span class="kind-tag" style="background:#C1503A;color:#fff;">↓51–60%</span> <span class="kind-tag" style="background:#8B1E1E;color:#fff;">↓61%+</span>
       </p>
       <div id="todayPfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
     </div>
@@ -1331,7 +1332,7 @@ function simpleTable(headers, rows){
   </table></div>`;
 }
 
-// % of personal best table — colors each value by its drop tier (10%+ amber, 20%+ red), matching the graph
+// % of personal best table — colors each value by its PEF zone, matching the graph
 function pctTable(rows){
   if(!rows.length) return `<div class="empty"><span class="eicon">📊</span>No data yet.</div>`;
   return `<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;font-size:13px;">
@@ -1341,8 +1342,9 @@ function pctTable(rows){
       <th style="text-align:left;padding:6px 8px 6px 0;color:var(--ink-faint);font-weight:600;white-space:nowrap;">Surgery</th>
     </tr></thead>
     <tbody>${rows.map(r=>{
-      const tier = pefDropTier(r.pct);
-      const color = tier===20 ? 'var(--sev4)' : tier===10 ? 'var(--sev2)' : 'var(--ink)';
+      const zone = pefZone(r.pct);
+      const tier = zone!==PEF_ZONES[0];
+      const color = zone.color;
       return `<tr>
         <td style="padding:6px 8px 6px 0;white-space:nowrap;">${escapeHtml(fmtDateTime(r.date))}</td>
         <td style="padding:6px 8px 6px 0;white-space:nowrap;color:${color};font-weight:${tier?'700':'400'};">${r.pct}</td>
@@ -1378,6 +1380,12 @@ function buildLineChart(svgEl, series, opts={}){
   const sy = y => (H-padB) - ( (y-minY)/(maxY-minY) ) * (H-padT-padB);
 
   let svg = '';
+  // optional shaded y-range bands — [{from,to,color}], clipped to the visible range
+  (opts.bands||[]).forEach(b=>{
+    const lo=Math.max(b.from,minY), hi=Math.min(b.to,maxY);
+    if(hi<=lo) return;
+    svg += `<rect x="${padL}" y="${sy(hi).toFixed(1)}" width="${W-padL-padR}" height="${(sy(lo)-sy(hi)).toFixed(1)}" fill="${b.color}" opacity="0.12"/>`;
+  });
   // gridlines — evenly-spaced multiples of opts.yStep when given (labeled below),
   // otherwise the old 4-unlabeled-line layout
   const yStep = opts.yStep;
@@ -1427,7 +1435,8 @@ function buildLineChart(svgEl, series, opts={}){
       // otherwise a point falling on a marker date is colored to match that marker group
       const tier = thresholdLines.find(t=>p.y<t.value);
       const markerGroup = !tier && markerGroups.find(g=>g.dates.some(m=>m.toDateString()===p.x.toDateString()));
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${tier?tier.color:markerGroup?markerGroup.color:s.color}"/>`;
+      const fill = (opts.pointColor && opts.pointColor(p)) || (tier?tier.color:markerGroup?markerGroup.color:s.color);
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${fill}"/>`;
     });
   });
   // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
@@ -1475,12 +1484,31 @@ function isSILSIDay(iso){
     return sd.getFullYear()===d.getFullYear() && sd.getMonth()===d.getMonth() && sd.getDate()===d.getDate();
   });
 }
-// returns 20, 10, or null depending on how far a %-of-personal-best reading has dropped
-function pefDropTier(pct){
+// PEF zones by drop from personal best — drop = 100 - (% of personal best).
+// minPct is the lowest whole % of personal best that still falls in the zone.
+const PEF_ZONES = [
+  {minPct:80, color:'#4C8C6B', label:'0–20% drop'},
+  {minPct:60, color:'#D9B23A', label:'21–40% drop'},
+  {minPct:50, color:'#D97B3D', label:'41–50% drop'},
+  {minPct:40, color:'#C1503A', label:'51–60% drop'},
+  {minPct:-Infinity, color:'#8B1E1E', label:'61%+ drop'},
+];
+function pefZone(pct){
   if(pct==null) return null;
-  if(pct < 80) return 20;
-  if(pct < 90) return 10;
-  return null;
+  return PEF_ZONES.find(z=>pct>=z.minPct);
+}
+// small colored tag for any reading outside the green zone
+function pefZoneTag(pct, style=''){
+  const z = pefZone(pct);
+  if(!z || z===PEF_ZONES[0]) return '';
+  return `<span class="kind-tag" style="background:${z.color};color:#fff;${style}">↓${z.label.replace(' drop','')}</span>`;
+}
+// shaded background bands for the zones, in chart y-units (scale = maxPF/100 for raw L/min)
+function pefZoneBands(scale=1){
+  return PEF_ZONES.map((z,i)=>({from:z.minPct*scale, to:i===0?Infinity:PEF_ZONES[i-1].minPct*scale, color:z.color}));
+}
+function pefZoneLegendHtml(){
+  return PEF_ZONES.map(z=>`<span><span class="legend-dot" style="background:${z.color};"></span>${z.label}</span>`).join('');
 }
 
 function renderTodayIntro(){
@@ -1489,7 +1517,7 @@ function renderTodayIntro(){
     <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
       <h2 style="margin-bottom:10px;">How to use this app</h2>
       <div class="stack" style="gap:10px;margin-bottom:14px;">
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (with 10%/20% drop indicators once you've added a personal best in Settings), and your full reading history.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (color-coded by how far each reading drops below your personal best, once you've added a personal best in Settings), and your full reading history.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, and symptoms.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Records</strong> — documents and your care team's details for quick reference at appointments or in an emergency.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), and export or delete your data.</p>
@@ -1560,8 +1588,10 @@ function renderToday(){
   const pfView = state.settings.chartView.pf || 'graph';
   document.getElementById('todayPfChartWrap').style.display = pfView==='graph' ? 'block':'none';
   document.getElementById('todayPfTableWrap').style.display = pfView==='table' ? 'block':'none';
+  document.getElementById('todayPfZoneLegend').innerHTML = maxPF ? pefZoneLegendHtml() : '';
   if(pfView==='graph'){
-    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups});
+    const zoneOpts = maxPF ? {bands:pefZoneBands(maxPF/100), pointColor:p=>pefZone(Math.round((p.y/maxPF)*100)).color} : {};
+    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups, ...zoneOpts});
   }else{
     document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery','SILSI'],
       [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
@@ -1577,8 +1607,7 @@ function renderToday(){
     const shown = todayPfListExpanded ? allReversed : allReversed.slice(0,3);
     const rowsHtml = shown.map(r=>{
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
-      const tier = pct!==null ? pefDropTier(pct) : null;
-      const tierTag = tier ? ` <span class="kind-tag" style="background:${tier===20?'var(--sev4)':'var(--sev2)'};color:#fff;">↓${tier}%+</span>` : '';
+      const tierTag = pct!==null ? ' '+pefZoneTag(pct) : '';
       return `
       <div class="list-item">
         <div class="li-main">
@@ -1637,15 +1666,14 @@ function renderPfPercentBody(bodyElId, idPrefix, markerGroups){
     const pctView = state.settings.chartView.pfPct || 'graph';
     const chartId = idPrefix+'PctChart', chartWrapId = idPrefix+'PctChartWrap', tableWrapId = idPrefix+'PctTableWrap';
     pctBody.innerHTML = `
-      <div class="stat-big" style="color:${latestPct<50?'var(--sev4)':latestPct<80?'var(--amber)':latestPct<90?'var(--sev2)':'var(--ink)'};">${latestPct}<span class="stat-unit">%</span>${pefDropTier(latestPct)?`<span class="kind-tag" style="background:${pefDropTier(latestPct)===20?'var(--sev4)':'var(--sev2)'};color:#fff;margin-left:8px;vertical-align:middle;">↓${pefDropTier(latestPct)}%+</span>`:''}</div>
+      <div class="stat-big" style="color:${pefZone(latestPct).color};">${latestPct}<span class="stat-unit">%</span>${pefZoneTag(latestPct,'margin-left:8px;vertical-align:middle;')}</div>
       <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
       ${chartViewToggleHtml('pfPct')}
       <div id="${chartWrapId}" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="${chartId}" viewBox="0 0 340 160"></svg></div>
       <div id="${tableWrapId}" style="display:${pctView==='table'?'block':'none'};"></div>
       <div class="chart-legend">
         <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
-        <span><span class="legend-dot" style="background:var(--sev2);"></span>10%+ drop</span>
-        <span><span class="legend-dot" style="background:var(--sev4);"></span>20%+ drop</span>
+        ${pefZoneLegendHtml()}
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
         <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
       </div>
@@ -1653,7 +1681,7 @@ function renderPfPercentBody(bodyElId, idPrefix, markerGroups){
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markerGroups, minY:0, maxY:100, yStep:20, thresholds:[{value:80,color:'#C1503A',label:'20% drop',labelBelow:true},{value:90,color:'#D9A441',label:'10% drop'}]});
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markerGroups, minY:0, maxY:100, yStep:20, bands:pefZoneBands(), pointColor:p=>pefZone(p.y).color});
     }else{
       document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
     }
