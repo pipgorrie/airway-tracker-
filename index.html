@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#F5F6F2;
+    --bg:#EAF3FB;
     --surface:#FFFFFF;
     --surface-alt:#EAF0EE;
     --ink:#16262B;
@@ -20,6 +20,11 @@
     --primary-soft:#DCEBE9;
     --amber:#C97A3D;
     --amber-soft:#F3E3D3;
+    --amber-border:#E7CBA9;
+    --primary-border:#BFDAD6;
+    --tabbar-bg:rgba(255,255,255,0.92);
+    --grid:#FFFFFF;
+    --plot-bg:#EDF1F4;
     --surgery:#2E6FB8;
     --silsi:#7B61B3;
     --sev0:#4C8C6B;
@@ -32,6 +37,27 @@
     --radius-l:22px;
     --shadow: 0 1px 2px rgba(22,38,43,0.06), 0 4px 16px rgba(22,38,43,0.05);
   }
+  /* ---- Accessibility options (Settings) — classes set on <html> ---- */
+  html.a11y-bright{--bg:#FFFFFF;--surface-alt:#EEF3F8;--line:#C9D3D8;}
+  html.a11y-bright .card{border:1px solid var(--line);box-shadow:none;}
+  html.a11y-contrast{--ink:#000000;--ink-soft:#26363B;--ink-faint:#3F4F54;--line:#8E9CA0;}
+  html.a11y-large body{zoom:1.15;}
+  html.a11y-dark{
+    color-scheme:dark;
+    --bg:#0E171C;--surface:#17242A;--surface-alt:#22333A;
+    --ink:#E8EEF0;--ink-soft:#B4C2C6;--ink-faint:#8A9A9F;--line:#33464D;
+    --primary-soft:#173D3A;--primary-border:#25524E;--primary-dark:#8FD3CB;
+    --amber-soft:#3A2A1C;--amber-border:#5A4028;
+    --tabbar-bg:rgba(23,36,42,0.94);
+    --grid:#17242A;
+    --plot-bg:#22333A;
+  }
+  html.a11y-dark .toast{background:#E8EEF0;color:#0E171C;}
+  html.a11y-dark.a11y-contrast{--ink:#FFFFFF;--ink-soft:#D6E0E3;--ink-faint:#B4C2C6;--line:#6B7F86;}
+  .a11y-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .a11y-row:last-of-type{border-bottom:none;}
+  .a11y-row small{display:block;color:var(--ink-faint);font-size:12px;margin-top:2px;}
+  .a11y-row input{width:22px;height:22px;accent-color:var(--primary);flex-shrink:0;}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -104,8 +130,8 @@
     gap:12px;
     align-items:flex-start;
   }
-  .banner.recovery{background:var(--amber-soft);border:1px solid #E7CBA9;}
-  .banner.reminder{background:var(--primary-soft);border:1px solid #BFDAD6;}
+  .banner.recovery{background:var(--amber-soft);border:1px solid var(--amber-border);}
+  .banner.reminder{background:var(--primary-soft);border:1px solid var(--primary-border);}
   .banner-icon{font-size:18px;line-height:1;margin-top:1px;}
   .banner-title{font-weight:600;font-size:14.5px;margin-bottom:2px;}
   .banner-body{font-size:13.5px;color:var(--ink-soft);line-height:1.45;}
@@ -137,8 +163,8 @@
   .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .quick-actions .btn{padding:16px 8px;flex-direction:column;font-size:12.5px;gap:6px;}
   .quick-actions .qicon{font-size:20px;}
-  .quick-actions .btn-pb{background:#2E6FB8;color:#fff;}
-  .quick-actions .btn-pb:active{background:#245A96;}
+  .quick-actions .btn-pb{background:#1B2F6B;color:#fff;}
+  .quick-actions .btn-pb:active{background:#13224F;}
   .quick-actions .btn-event{background:#7B61B3;color:#fff;}
   .quick-actions .btn-event:active{background:#634C96;}
 
@@ -173,7 +199,7 @@
   /* ---- Tab bar ---- */
   nav.tabbar{
     position:fixed;bottom:0;left:0;right:0;
-    background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);
+    background:var(--tabbar-bg);backdrop-filter:blur(10px);
     border-top:1px solid var(--line);
     display:flex;
     padding:8px 6px calc(8px + env(safe-area-inset-bottom));
@@ -318,7 +344,7 @@
       <div id="todayPfChartWrap" class="chart-wrap"><svg class="chart" id="todayPfChart" viewBox="0 0 340 160"></svg></div>
       <div id="todayPfTableWrap" style="display:none;"></div>
       <div class="chart-legend">
-        <span><span class="legend-dot" style="background:var(--primary);"></span>PEF</span>
+        <span><span class="legend-dot" id="todayPfLegendDot" style="background:#1B2F6B;"></span>PEF</span>
         <span id="todayPfZoneLegend" style="display:contents;"></span>
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
         <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
@@ -335,7 +361,7 @@
     <div class="card">
       <h2 style="margin-bottom:6px;">PEF history</h2>
       <p style="font-size:12px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">
-        Colored tags flag readings more than 20% below your personal best: <span class="kind-tag" style="background:#D9B23A;color:#fff;">↓21–40%</span> <span class="kind-tag" style="background:#D97B3D;color:#fff;">↓41–50%</span> <span class="kind-tag" style="background:#C1503A;color:#fff;">↓51–60%</span> <span class="kind-tag" style="background:#8B1E1E;color:#fff;">↓61%+</span>
+        Each reading shows how far it is below your personal best, colored by zone: <span class="kind-tag" style="background:#4C8C6B;color:#fff;">0–20%</span> <span class="kind-tag" style="background:#D9B23A;color:var(--ink);">21–40%</span> <span class="kind-tag" style="background:#D97B3D;color:#fff;">41–50%</span> <span class="kind-tag" style="background:#C1503A;color:#fff;">51–60%</span> <span class="kind-tag" style="background:#8B1E1E;color:#fff;">61%+</span>
       </p>
       <div id="todayPfList"><div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div></div>
     </div>
@@ -519,6 +545,8 @@ function defaultSettings(){
     reminderEnabled:false, reminderTime:'20:00', unit:'L/min',
     chartView: {pf:'graph', pfPct:'graph', oxygen:'graph', symptoms:'graph'}, // 'graph' or 'table', per chart
     maxPeakFlow: null, // your known personal-best/max peak flow, used to show each reading as a %
+    accessibility: {bright:false, dark:false, largeText:false, highContrast:false},
+    pfRange: 'all', // PEF graphs time range: 'day' | 'week' | 'month' | 'all'
     // unlimited, user-editable list of symptoms/activities to rate each time symptoms are logged
     customSymptoms: [
       {id:'symp1', label:'Stridor / noisy breathing'},
@@ -572,6 +600,8 @@ async function loadState(){
       state.careInfo.surgeon = Object.assign(careDefaults.surgeon, parsedCare.surgeon||{});
     }
   }catch(e){ /* no data yet */ }
+  state.settings.accessibility = Object.assign({bright:false, dark:false, largeText:false, highContrast:false}, state.settings.accessibility||{});
+  applyAccessibility();
   stateLoaded = true;
   renderAll();
 }
@@ -1432,6 +1462,80 @@ function chartViewToggleHtml(chart){
     ${btn('graph','📈 Graph')}${btn('table','▦ Table')}
   </div>`;
 }
+/* ---- PEF time range (daily / weekly / monthly / all) — shared by both PEF graphs and their tables ---- */
+const PF_RANGES = [
+  {value:'day', label:'Daily (today)'},
+  {value:'week', label:'Weekly (last 7 days)'},
+  {value:'month', label:'Monthly (last 30 days)'},
+  {value:'all', label:'All time'},
+];
+function pfRangeSelectHtml(){
+  const cur = state.settings.pfRange || 'all';
+  return `<select onchange="setPfRange(this.value)" aria-label="Time range" style="width:auto;padding:6px 10px;font-size:12.5px;font-weight:600;border-radius:999px;margin:0 0 10px 8px;vertical-align:top;">
+    ${PF_RANGES.map(r=>`<option value="${r.value}" ${r.value===cur?'selected':''}>${r.label}</option>`).join('')}
+  </select>`;
+}
+function setPfRange(value){
+  state.settings.pfRange = value;
+  saveState(); renderAll();
+}
+// returns {start, end, ticks} for the chosen range, or null for "all time"
+function pfRangeWindow(){
+  const range = state.settings.pfRange || 'all';
+  if(range==='all') return null;
+  const DAY = 86400000;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = today.getTime() + DAY;
+  const days = {day:1, week:7, month:30}[range];
+  const start = end - days*DAY;
+  const ticks = [];
+  if(range==='day'){
+    for(let h=0; h<=24; h+=6){
+      const d = new Date(start + h*3600000);
+      ticks.push({x:d.getTime(), label: h===24 ? '' : d.toLocaleTimeString(undefined,{hour:'numeric'})});
+    }
+  }else if(range==='week'){
+    for(let i=0;i<7;i++){
+      const d = new Date(start + i*DAY + DAY/2);
+      ticks.push({x:d.getTime(), label:d.toLocaleDateString(undefined,{weekday:'short'})+' '+d.getDate()});
+    }
+  }else{
+    for(let i=0;i<=30;i+=7){
+      const d = new Date(start + i*DAY);
+      ticks.push({x:d.getTime(), label:d.toLocaleDateString(undefined,{month:'short',day:'numeric'})});
+    }
+  }
+  return {start, end, ticks};
+}
+function inPfRange(dateIso){
+  const w = pfRangeWindow();
+  if(!w) return true;
+  const t = new Date(dateIso).getTime();
+  return t>=w.start && t<w.end;
+}
+function pfRangeChartOpts(){
+  const w = pfRangeWindow();
+  if(w) return {minX:w.start, maxX:w.end, xTicks:w.ticks, emptyText:'No readings in this period'};
+  // all time: label the 1st of each month the readings span (thinned out if there are many)
+  if(!state.peakFlow.length) return {};
+  const times = state.peakFlow.map(r=>new Date(r.date).getTime());
+  const minT = Math.min(...times), maxT = Math.max(...times);
+  const ticks = [];
+  const d = new Date(minT); d.setDate(1); d.setHours(0,0,0,0);
+  if(d.getTime()<minT) d.setMonth(d.getMonth()+1);
+  for(; d.getTime()<=maxT; d.setMonth(d.getMonth()+1)){
+    ticks.push({x:d.getTime(), label:d.toLocaleDateString(undefined,{day:'numeric',month:'short'})});
+  }
+  if(!ticks.length) return {}; // readings all within one month — fall back to first/last dates
+  const every = Math.ceil(ticks.length/7);
+  const monthTicks = ticks.filter((t,i)=>i%every===0);
+  // always label the first reading (when you started using the app); drop a month label
+  // that would sit on top of it (~34px of the 296px plot width)
+  const fmt = t => new Date(t).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+  const span = Math.max(maxT-minT, 1);
+  const clear = monthTicks.filter(t=>(t.x-minT)/span*296 > 34);
+  return {xTicks: [{x:minT, label:fmt(minT)}, ...clear]};
+}
 function setChartView(chart, mode){
   state.settings.chartView[chart] = mode;
   saveState(); renderAll();
@@ -1477,7 +1581,7 @@ function buildLineChart(svgEl, series, opts={}){
   svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
   const allPts = series.flatMap(s=>s.points);
   if(allPts.length===0){
-    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8B9A9D" font-size="12" font-family="IBM Plex Sans">Not enough data yet</text>`;
+    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8B9A9D" font-size="12" font-family="IBM Plex Sans">${opts.emptyText||'Not enough data yet'}</text>`;
     return;
   }
   // x-axis range comes from the data only — a surgery marker far outside the reading
@@ -1485,6 +1589,8 @@ function buildLineChart(svgEl, series, opts={}){
   const xs = allPts.map(p=>p.x.getTime());
   const ys = allPts.map(p=>p.y);
   let minX=Math.min(...xs), maxX=Math.max(...xs);
+  // a fixed time window (daily/weekly/monthly view) overrides the data-driven range
+  if(opts.minX!==undefined){ minX=opts.minX; maxX=opts.maxX; }
   if(minX===maxX){ minX-=86400000; maxX+=86400000; }
   let minY = opts.minY!==undefined?opts.minY:Math.min(...ys);
   let maxY = opts.maxY!==undefined?opts.maxY:Math.max(...ys);
@@ -1495,11 +1601,18 @@ function buildLineChart(svgEl, series, opts={}){
   const sy = y => (H-padB) - ( (y-minY)/(maxY-minY) ) * (H-padT-padB);
 
   let svg = '';
+  // tinted plot area — white gridlines and gaps are drawn over it
+  svg += `<rect x="${padL}" y="${padT}" width="${W-padL-padR}" height="${H-padT-padB}" style="fill:var(--plot-bg)"/>`;
   // optional shaded y-range bands — [{from,to,color}], clipped to the visible range
   (opts.bands||[]).forEach(b=>{
     const lo=Math.max(b.from,minY), hi=Math.min(b.to,maxY);
     if(hi<=lo) return;
-    svg += `<rect x="${padL}" y="${sy(hi).toFixed(1)}" width="${W-padL-padR}" height="${(sy(lo)-sy(hi)).toFixed(1)}" fill="${b.color}" opacity="0.12"/>`;
+    svg += `<rect x="${padL}" y="${sy(hi).toFixed(1)}" width="${W-padL-padR}" height="${(sy(lo)-sy(hi)).toFixed(1)}" fill="${b.color}" opacity="${b.opacity||0.12}"/>`;
+  });
+  // white gap between neighbouring bands
+  (opts.bands||[]).forEach(b=>{
+    if(b.from<=minY || b.from>=maxY) return;
+    svg += `<line x1="${padL}" y1="${sy(b.from).toFixed(1)}" x2="${W-padR}" y2="${sy(b.from).toFixed(1)}" style="stroke:var(--grid)" stroke-width="2"/>`;
   });
   // gridlines — evenly-spaced multiples of opts.yStep when given (labeled below),
   // otherwise the old 4-unlabeled-line layout
@@ -1510,12 +1623,12 @@ function buildLineChart(svgEl, series, opts={}){
   if(gridYs){
     gridYs.forEach(v=>{
       const gy = sy(v);
-      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#B9C4BF" stroke-width="1"/>`;
+      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" style="stroke:var(--grid)" stroke-width="1.2"/>`;
     });
   }else{
     for(let i=0;i<=3;i++){
       const gy = padT + i*(H-padT-padB)/3;
-      svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#B9C4BF" stroke-width="1"/>`;
+      svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" style="stroke:var(--grid)" stroke-width="1"/>`;
     }
   }
   // event markers (surgery dates, SILSI dates, ...) — each group is {dates:[Date], color}.
@@ -1563,7 +1676,7 @@ function buildLineChart(svgEl, series, opts={}){
       const tier = thresholdLines.find(t=>p.y<t.value);
       const markerGroup = !tier && markerGroups.find(g=>g.dates.some(m=>m.toDateString()===p.x.toDateString()));
       const fill = (opts.pointColor && opts.pointColor(p)) || (tier?tier.color:markerGroup?markerGroup.color:s.color);
-      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3" fill="${fill}"/>`;
+      svg += `<circle cx="${sx(p.x.getTime()).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.2" fill="${fill}" style="stroke:var(--grid)" stroke-width="1.2"/>`;
     });
   });
   // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
@@ -1578,11 +1691,21 @@ function buildLineChart(svgEl, series, opts={}){
     svg += `<text x="4" y="${sy(maxY-pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(maxY-pad)}</text>`;
     svg += `<text x="4" y="${sy(minY+pad).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(minY+pad)}</text>`;
   }
-  // x-axis labels (first/last)
-  const first = new Date(minX), last = new Date(maxX);
-  const fmt = d => d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  svg += `<text x="${padL}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${fmt(first)}</text>`;
-  svg += `<text x="${W-padR}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans" text-anchor="end">${fmt(last)}</text>`;
+  // x-axis labels — opts.xTicks [{x:ms,label}] for a fixed time window, otherwise first/last date
+  if(opts.xTicks){
+    opts.xTicks.forEach(t=>{
+      const tx = sx(t.x);
+      if(tx<padL-1 || tx>W-padR+1) return;
+      const anchor = tx<padL+12 ? 'start' : tx>W-padR-12 ? 'end' : 'middle';
+      svg += `<line x1="${tx.toFixed(1)}" y1="${H-padB}" x2="${tx.toFixed(1)}" y2="${H-padB+3}" style="stroke:var(--grid)" stroke-width="1"/>`;
+      svg += `<text x="${tx.toFixed(1)}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans" text-anchor="${anchor}">${t.label}</text>`;
+    });
+  }else{
+    const first = new Date(minX), last = new Date(maxX);
+    const fmt = d => d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    svg += `<text x="${padL}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${fmt(first)}</text>`;
+    svg += `<text x="${W-padR}" y="${H-6}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans" text-anchor="end">${fmt(last)}</text>`;
+  }
   svgEl.innerHTML = svg;
 }
 
@@ -1629,7 +1752,7 @@ const PEF_ZONES = [
   {minPct:60, color:'#D9B23A', label:'21–40% drop'},
   {minPct:50, color:'#D97B3D', label:'41–50% drop'},
   {minPct:40, color:'#C1503A', label:'51–60% drop'},
-  {minPct:-Infinity, color:'#8B1E1E', label:'61%+ drop'},
+  {minPct:-Infinity, color:'#8B1E1E', label:'61%+ drop', bandOpacity:0.3},
 ];
 function pefZone(pct){
   if(pct==null) return null;
@@ -1643,7 +1766,7 @@ function pefZoneTag(pct, style=''){
 }
 // shaded background bands for the zones, in chart y-units (scale = maxPF/100 for raw L/min)
 function pefZoneBands(scale=1){
-  return PEF_ZONES.map((z,i)=>({from:z.minPct*scale, to:i===0?Infinity:PEF_ZONES[i-1].minPct*scale, color:z.color}));
+  return PEF_ZONES.map((z,i)=>({from:z.minPct*scale, to:i===0?Infinity:PEF_ZONES[i-1].minPct*scale, color:z.color, opacity:z.bandOpacity}));
 }
 function pefZoneLegendHtml(){
   return PEF_ZONES.map(z=>`<span><span class="legend-dot" style="background:${z.color};"></span>${z.label}</span>`).join('');
@@ -1653,10 +1776,18 @@ let todayIntroOpen = false; // UI-only: remembers the "How to use this app" drop
 function renderTodayIntro(){
   const el = document.getElementById('todayIntro');
   el.innerHTML = `
-    <details class="card intro-details" style="background:var(--primary-soft);border:1px solid #BFDAD6;" ${todayIntroOpen?'open':''} ontoggle="todayIntroOpen=this.open">
+    <details class="card intro-details" style="background:var(--primary-soft);border:1px solid var(--primary-border);" ${todayIntroOpen?'open':''} ontoggle="todayIntroOpen=this.open">
       <summary><h2>How to use this app</h2><span class="intro-chevron">▾</span></summary>
       <div class="stack" style="gap:10px;margin:10px 0 14px;">
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (color-coded by how far each reading drops below your personal best, once you've added a personal best in Settings), and your full reading history.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best, and your PEF history.</p>
+        <div style="font-size:13.5px;line-height:1.5;">
+          <strong>Color bands</strong> — once you've added a personal best in Settings, the PEF graphs are shaded in bands showing how far a reading has dropped below your personal best — see which band each dot sits in:
+          <div class="stack" style="gap:4px;margin-top:6px;">
+            ${PEF_ZONES.map(z=>`<div style="display:flex;align-items:center;gap:8px;"><span style="width:14px;height:14px;border-radius:4px;background:${z.color};flex-shrink:0;"></span><span><strong>${z.label}</strong> — ${z.minPct===-Infinity?'under 40':z.minPct===80?'80% or more':`${z.minPct}–${PEF_ZONES[PEF_ZONES.indexOf(z)-1].minPct-1}%`}${z.minPct===-Infinity?'%':''} of personal best</span></div>`).join('')}
+          </div>
+        </div>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>PEF history</strong> — each reading shows its % of personal best and a tag with the exact drop (e.g. ↓35%), both in its band color, with a matching bar down the left. Surgeries (blue) and SILSI (purple) are listed in date order alongside your readings.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Dashed lines</strong> on the graphs mark surgery (blue) and SILSI (purple) dates, with the date shown above each line.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Log treatment/event</strong> (Home) — record a surgery/dilation, SILSI, infection, illness, oral steroids, antibiotics, or anything else in one place.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, illness &amp; events, allergies, SpO₂, and symptoms.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Records</strong> — documents and your care team's details for quick reference at appointments or in an emergency.</p>
@@ -1670,7 +1801,7 @@ function renderTabIntro(elId, title, bodyHtml){
   const el = document.getElementById(elId);
   if(!el) return;
   el.innerHTML = `
-    <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
+    <div class="card" style="background:var(--primary-soft);border:1px solid var(--primary-border);">
       <h2 style="margin-bottom:8px;">${title}</h2>
       <div style="font-size:13.5px;line-height:1.5;color:var(--ink);margin-bottom:10px;">${bodyHtml}</div>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only.</p>
@@ -1722,20 +1853,22 @@ function renderToday(){
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
   const todayMarkerGroups = eventMarkerGroups();
 
-  document.getElementById('todayPfViewToggle').innerHTML = chartViewToggleHtml('pf');
+  document.getElementById('todayPfViewToggle').innerHTML = chartViewToggleHtml('pf') + pfRangeSelectHtml();
+  const pfInRange = state.peakFlow.filter(r=>inPfRange(r.date));
   const pfView = state.settings.chartView.pf || 'graph';
   document.getElementById('todayPfChartWrap').style.display = pfView==='graph' ? 'block':'none';
   document.getElementById('todayPfTableWrap').style.display = pfView==='table' ? 'block':'none';
+  document.getElementById('todayPfLegendDot').style.background = pefLineColor();
   document.getElementById('todayPfZoneLegend').innerHTML = maxPF ? pefZoneLegendHtml() : '';
   if(pfView==='graph'){
-    const zoneOpts = maxPF ? {bands:pefZoneBands(maxPF/100), pointColor:p=>pefZone(Math.round((p.y/maxPF)*100)).color} : {};
+    const zoneOpts = maxPF ? {bands:pefZoneBands(maxPF/100)} : {};
     // y-axis snapped out to whole multiples of 20 L/min so the gridlines land on round numbers
-    const pfVals = state.peakFlow.map(r=>r.value);
+    const pfVals = pfInRange.map(r=>r.value);
     const pfRange = pfVals.length ? {minY:Math.floor(Math.min(...pfVals)/20)*20, maxY:Math.ceil(Math.max(...pfVals)/20)*20} : {};
-    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups, yStep:20, ...pfRange, ...zoneOpts});
+    buildLineChart(document.getElementById('todayPfChart'), [{points:pfInRange.map(r=>({x:new Date(r.date), y:r.value})),color:pefLineColor()}], {markerGroups:todayMarkerGroups, yStep:20, ...pfRange, ...zoneOpts, ...pfRangeChartOpts(), pointColor:()=>pefLineColor()});
   }else{
     document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery','SILSI'],
-      [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
+      [...pfInRange].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
   }
 
   renderPfPercentBody('todayPfPercentBody', 'todayPf', todayMarkerGroups);
@@ -1744,23 +1877,44 @@ function renderToday(){
   if(!state.peakFlow.length){
     pfListEl.innerHTML = `<div class="empty"><span class="eicon">🌬️</span>No readings yet — log your first PEF reading above.</div>`;
   }else{
-    const allReversed = [...state.peakFlow].reverse();
+    // PEF readings interleaved with surgery and SILSI dates, newest first
+    const allReversed = [
+      ...state.peakFlow.map(r=>({...r, entry:'pef'})),
+      ...state.surgeries.map(r=>({...r, entry:'surgery'})),
+      ...state.silsi.map(r=>({...r, entry:'silsi'})),
+    ].sort((a,b)=>new Date(b.date)-new Date(a.date));
     const shown = todayPfListExpanded ? allReversed : allReversed.slice(0,3);
     const rowsHtml = shown.map(r=>{
+      if(r.entry!=='pef'){
+        const isSurgery = r.entry==='surgery';
+        const color = isSurgery ? 'var(--surgery)' : 'var(--silsi)';
+        const locText = isSurgery ? formatSurgeryLocation(r.location) : '';
+        return `
+      <div class="list-item" style="border-left:4px solid ${color};padding-left:10px;">
+        <div class="li-main">
+          <div class="li-date">${fmtDate(r.date)}</div>
+          <div class="li-title" style="color:${color};">${isSurgery?`🏥 Surgery: ${escapeHtml(r.type)}`:'💉 SILSI'}</div>
+          ${locText?`<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${escapeHtml(locText)}</div>`:''}
+          ${r.notes?`<div class="li-notes">${escapeHtml(r.notes)}</div>`:''}
+        </div>
+      </div>`;
+      }
       const pct = maxPF ? Math.round((r.value/maxPF)*100) : null;
-      const tierTag = pct!==null ? ' '+pefZoneTag(pct) : '';
+      const zone = pefZone(pct);
+      const drop = pct!==null ? 100-pct : null;
+      const dropTag = zone ? ` <span class="kind-tag" style="background:${zone.color};color:${zone===PEF_ZONES[1]?'var(--ink)':'#fff'};">${drop>0?`↓${drop}%`:drop<0?`↑${-drop}%`:'At best'}</span>` : '';
       return `
-      <div class="list-item">
+      <div class="list-item" style="${zone?`border-left:4px solid ${zone.color};padding-left:10px;`:''}">
         <div class="li-main">
           <div class="li-date">${fmtDateTime(r.date)}</div>
-          <div class="li-title">${r.value} L/min${pct!==null?` · ${pct}% of your personal best (${maxPF} L/min)`:''}${tierTag}</div>
+          <div class="li-title">${r.value} L/min${pct!==null?` · <span style="color:${zone.color};font-weight:700;">${pct}%</span> of your personal best (${maxPF} L/min)`:''}${dropTag}</div>
           ${r.note?`<div class="li-notes">${escapeHtml(r.note)}</div>`:''}
         </div>
         <button class="li-del" onclick="deletePeakFlow('${r.id}')" aria-label="Delete">✕</button>
       </div>`;
     }).join('');
     const toggleHtml = allReversed.length>3
-      ? `<button class="info-toggle" style="margin-top:10px;" onclick="toggleTodayPfList()">${todayPfListExpanded ? 'Show fewer ▴' : `Show all ${allReversed.length} readings ▾`}</button>`
+      ? `<button class="info-toggle" style="margin-top:10px;" onclick="toggleTodayPfList()">${todayPfListExpanded ? 'Show fewer ▴' : `Show all ${allReversed.length} entries ▾`}</button>`
       : '';
     pfListEl.innerHTML = rowsHtml + toggleHtml;
   }
@@ -1804,17 +1958,18 @@ function renderPfPercentBody(bodyElId, idPrefix, markerGroups){
     const withPct = state.peakFlow.map(r=>({...r, pct: Math.round((r.value/maxPF)*100)}));
     const latestReading = withPct[withPct.length-1];
     const latestPct = latestReading.pct;
-    const pctPts = withPct.map(r=>({x:new Date(r.date), y:r.pct}));
+    const pctInRange = withPct.filter(r=>inPfRange(r.date));
+    const pctPts = pctInRange.map(r=>({x:new Date(r.date), y:r.pct}));
     const pctView = state.settings.chartView.pfPct || 'graph';
     const chartId = idPrefix+'PctChart', chartWrapId = idPrefix+'PctChartWrap', tableWrapId = idPrefix+'PctTableWrap';
     pctBody.innerHTML = `
       <div class="stat-big" style="color:${pefZone(latestPct).color};">${latestPct}<span class="stat-unit">%</span>${pefZoneTag(latestPct,'margin-left:8px;vertical-align:middle;')}</div>
       <div class="stat-label" style="margin-bottom:14px;">Latest: ${latestReading.value} L/min, vs. personal best ${maxPF} L/min</div>
-      ${chartViewToggleHtml('pfPct')}
+      ${chartViewToggleHtml('pfPct')}${pfRangeSelectHtml()}
       <div id="${chartWrapId}" class="chart-wrap" style="display:${pctView==='graph'?'block':'none'};"><svg class="chart" id="${chartId}" viewBox="0 0 340 160"></svg></div>
       <div id="${tableWrapId}" style="display:${pctView==='table'?'block':'none'};"></div>
       <div class="chart-legend">
-        <span><span class="legend-dot" style="background:#0F6E68;"></span>% of personal best</span>
+        <span><span class="legend-dot" style="background:${pefLineColor()};"></span>% of personal best</span>
         ${pefZoneLegendHtml()}
         <span><span class="legend-dot" style="background:var(--surgery);"></span><span style="color:var(--surgery);">Surgery date</span></span>
         <span><span class="legend-dot" style="background:var(--silsi);"></span><span style="color:var(--silsi);">SILSI</span></span>
@@ -1823,9 +1978,9 @@ function renderPfPercentBody(bodyElId, idPrefix, markerGroups){
         % of personal best compares each reading to the value you entered in Settings — update that value any time your baseline changes. This can provide an approximate guide to changes in airway openness, not a precise clinical measure.
       </p>`;
     if(pctView==='graph'){
-      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:'#0F6E68'}], {markerGroups, minY:0, maxY:100, yStep:20, bands:pefZoneBands(), pointColor:p=>pefZone(p.y).color});
+      buildLineChart(document.getElementById(chartId), [{points:pctPts,color:pefLineColor()}], {markerGroups, minY:0, maxY:100, yStep:20, bands:pefZoneBands(), ...pfRangeChartOpts(), pointColor:()=>pefLineColor()});
     }else{
-      document.getElementById(tableWrapId).innerHTML = pctTable([...withPct].reverse());
+      document.getElementById(tableWrapId).innerHTML = pctTable([...pctInRange].reverse());
     }
   }
 }
@@ -2045,6 +2200,15 @@ function openSettings(){
     </div>
     <button class="btn btn-outline" style="margin-bottom:18px;" onclick="saveMaxPeakFlow()">Save</button>
 
+    <h2 style="margin-bottom:4px;">Accessibility</h2>
+    <div style="margin-bottom:18px;">
+      ${A11Y_OPTIONS.map(o=>`
+        <label class="a11y-row">
+          <span>${o.label}<small>${o.hint}</small></span>
+          <input type="checkbox" id="a11y-${o.key}" ${state.settings.accessibility[o.key]?'checked':''} onchange="setAccessibility('${o.key}', this.checked)">
+        </label>`).join('')}
+    </div>
+
     <div class="stack">
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
@@ -2056,6 +2220,36 @@ function openSettings(){
       Your tracking data (PEF, symptoms, surgeries, meds, care team & ID details) is stored only for you and is not shared.
     </div>
   `);
+}
+const A11Y_OPTIONS = [
+  {key:'bright', label:'Bright background', hint:'Plain white background with outlined cards'},
+  {key:'dark', label:'Dark background', hint:'Dark colors — easier on the eyes at night or in low light'},
+  {key:'largeText', label:'Larger text', hint:'Makes all text and buttons about 15% bigger'},
+  {key:'highContrast', label:'High contrast text', hint:'Darker text and lines for easier reading'},
+];
+function applyAccessibility(){
+  const a = state.settings.accessibility || {};
+  const root = document.documentElement;
+  root.classList.toggle('a11y-bright', !!a.bright);
+  root.classList.toggle('a11y-large', !!a.largeText);
+  root.classList.toggle('a11y-contrast', !!a.highContrast);
+  root.classList.toggle('a11y-dark', !!a.dark);
+}
+// line + dot color for the PEF graphs — navy on light backgrounds, a lighter blue on dark
+function pefLineColor(){ return state.settings.accessibility?.dark ? '#8FB4FF' : '#1B2F6B'; }
+// applied straight away so the change is visible behind the open Settings sheet
+function setAccessibility(key, on){
+  state.settings.accessibility[key] = on;
+  // bright and dark backgrounds can't both be on — switching one on turns the other off
+  const other = {bright:'dark', dark:'bright'}[key];
+  if(on && other){
+    state.settings.accessibility[other] = false;
+    const box = document.getElementById('a11y-'+other);
+    if(box) box.checked = false;
+  }
+  applyAccessibility();
+  saveState();
+  renderAll(); // graphs pick their line color from the theme
 }
 function saveMaxPeakFlow(){
   const raw = document.getElementById('maxPFInput').value;
@@ -2157,9 +2351,11 @@ function exportDataPDF(){
   setTimeout(()=>win.print(), 300);
 }
 function clearData(){
+  // accessibility choices are display preferences, not tracking data, so they survive a clear
+  const accessibility = state.settings.accessibility;
   state = {
     peakFlow:[], oxygen:[], symptoms:[], surgeries:[], silsi:[], treatments:[], events:[], allergies:[], documents:[],
-    careInfo: defaultCareInfo(), settings: defaultSettings()
+    careInfo: defaultCareInfo(), settings: {...defaultSettings(), accessibility}
   };
   saveState(); closeModal(); renderAll(); toast('All data cleared');
 }
