@@ -137,6 +137,10 @@
   .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .quick-actions .btn{padding:16px 8px;flex-direction:column;font-size:12.5px;gap:6px;}
   .quick-actions .qicon{font-size:20px;}
+  .quick-actions .btn-pb{background:#2E6FB8;color:#fff;}
+  .quick-actions .btn-pb:active{background:#245A96;}
+  .quick-actions .btn-event{background:#7B61B3;color:#fff;}
+  .quick-actions .btn-event:active{background:#634C96;}
 
   /* ---- Form elements ---- */
   label.field-label{font-size:12.5px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:6px;}
@@ -240,6 +244,10 @@
   }
   .kind-tag.diet{background:var(--amber-soft);color:#8A4E22;}
   .kind-tag.therapy{background:#E3DCEF;color:#5B3E8A;}
+  .intro-details summary{list-style:none;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+  .intro-details summary::-webkit-details-marker{display:none;}
+  .intro-details .intro-chevron{color:var(--primary-dark);font-size:14px;transition:transform .2s;}
+  .intro-details[open] .intro-chevron{transform:rotate(180deg);}
   .info-toggle{background:none;border:none;color:var(--primary-dark);font-size:12.5px;font-weight:600;padding:0;margin-top:2px;}
   .info-box{font-size:13px;color:var(--ink-soft);line-height:1.55;background:var(--surface-alt);border-radius:var(--radius-s);padding:12px 13px;margin-top:10px;}
 
@@ -288,7 +296,8 @@
 
     <div class="quick-actions">
       <button class="btn btn-primary" onclick="openPeakFlowModal()"><span class="qicon">📈</span>Log PEF</button>
-      <button class="btn btn-ghost" onclick="openSettings()"><span class="qicon">🎯</span>Log Personal Best PEF</button>
+      <button class="btn btn-pb" onclick="openSettings()"><span class="qicon">🎯</span>Log Personal Best PEF</button>
+      <button class="btn btn-event" style="grid-column:1 / -1;" onclick="openEventModal()"><span class="qicon">🩺</span>Log treatment/event</button>
     </div>
 
     <div class="card">
@@ -403,6 +412,7 @@
       <button class="active" data-seg="surgeries" onclick="setSurgerySeg('surgeries')">Surgeries</button>
       <button data-seg="silsi" onclick="setSurgerySeg('silsi')">SILSI</button>
       <button data-seg="treatments" onclick="setSurgerySeg('treatments')">Treatments</button>
+      <button data-seg="events" onclick="setSurgerySeg('events')">Illness &amp; events</button>
       <button data-seg="allergies" onclick="setSurgerySeg('allergies')">Allergies</button>
       <button data-seg="spo2" onclick="setSurgerySeg('spo2')">SpO₂ (optional)</button>
       <button data-seg="symptoms" onclick="setSurgerySeg('symptoms')">Symptoms</button>
@@ -427,6 +437,13 @@
       <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openTreatmentModal()">+ Log a medication, diet, or therapy</button>
       <div class="card">
         <div id="treatmentList"><div class="empty"><span class="eicon">💊</span>Nothing logged yet.</div></div>
+      </div>
+    </div>
+
+    <div id="seg-events" style="display:none;">
+      <button class="btn btn-primary" style="margin-bottom:14px;" onclick="openEventModal()">+ Log treatment/event</button>
+      <div class="card">
+        <div id="eventList"><div class="empty"><span class="eicon">🤒</span>No illnesses or events logged yet.</div></div>
       </div>
     </div>
 
@@ -528,7 +545,8 @@ let state = {
   symptoms: [],       // {id, date, cough, mucus, stridor, custom:[{id,label,value}]}
   surgeries: [],       // {id, date, type, notes}
   silsi: [],              // {id, date, notes} — serial intralesional steroid injections (SILSI)
-  treatments: [],       // {id, name, kind ('medication'|'diet'), start, end, notes}
+  treatments: [],       // {id, name, kind ('medication'|'diet'), start, end, notes, category (optional: 'oral-steroids'|'antibiotics')}
+  events: [],             // {id, type ('resp-infection'|'infection'|'illness'|'other'), name, start, end, notes}
   allergies: [],        // {id, allergen, reaction, severity, notes}
   documents: [],        // {id, date, title, kind ('paper'|'email'|'other'), note, linkedSurgeryId, thumb (small dataURL)} — full-size image stored separately per doc
   careInfo: defaultCareInfo(), // health/insurance IDs, GP, surgeon — device-local only
@@ -592,6 +610,7 @@ function setSurgerySeg(seg){
   document.getElementById('seg-surgeries').style.display = seg==='surgeries' ? 'block':'none';
   document.getElementById('seg-silsi').style.display = seg==='silsi' ? 'block':'none';
   document.getElementById('seg-treatments').style.display = seg==='treatments' ? 'block':'none';
+  document.getElementById('seg-events').style.display = seg==='events' ? 'block':'none';
   document.getElementById('seg-allergies').style.display = seg==='allergies' ? 'block':'none';
   document.getElementById('seg-spo2').style.display = seg==='spo2' ? 'block':'none';
   document.getElementById('seg-symptoms').style.display = seg==='symptoms' ? 'block':'none';
@@ -782,9 +801,14 @@ function deleteSymptom(id){ state.symptoms = state.symptoms.filter(r=>r.id!==id)
 /* ---- Surgery modal ---- */
 const STENOSIS_LOCATIONS = ['Subglottis','Glottis / vocal folds','Upper trachea','Mid trachea','Lower trachea','Other'];
 function openSurgeryModal(){
-  const now = new Date();
   renderModal(`
     <div class="modal-head"><h2>Log a surgery</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    ${surgeryFieldsHtml()}`);
+}
+// surgery form fields + save button — shared by the surgery modal and the Log treatment/event modal
+function surgeryFieldsHtml(){
+  const now = new Date();
+  return `
     <div class="field"><label class="field-label">Procedure</label><input type="text" id="sgType" placeholder="e.g. Balloon dilation, endoscopic resection"></div>
     <div class="field">
       <label class="field-label">Stenosis location (optional — select all that apply)</label>
@@ -816,7 +840,7 @@ function openSurgeryModal(){
     </div>
     <div class="field"><label class="field-label">Notes (optional)</label><textarea id="sgNotes" placeholder="Surgeon, hospital, how it went..."></textarea></div>
     <button class="btn btn-primary" onclick="saveSurgery()">Save surgery</button>
-  `);
+  `;
 }
 function saveSurgery(){
   const type = document.getElementById('sgType').value.trim();
@@ -849,14 +873,18 @@ function deleteSurgery(id){ state.surgeries = state.surgeries.filter(r=>r.id!==i
 
 /* ---- SILSI modal (serial intralesional steroid injection) ---- */
 function openSILSIModal(){
-  const now = new Date();
   renderModal(`
     <div class="modal-head"><h2>Log a SILSI</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    ${silsiFieldsHtml()}`);
+}
+function silsiFieldsHtml(){
+  const now = new Date();
+  return `
     <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:16px;">Serial intralesional steroid injection.</p>
     <div class="field"><label class="field-label">Date</label><input type="date" id="slDate" value="${now.toISOString().slice(0,10)}"></div>
     <div class="field"><label class="field-label">Notes (optional)</label><textarea id="slNotes" placeholder="Site, dose, how it went..."></textarea></div>
     <button class="btn btn-primary" onclick="saveSILSI()">Save SILSI</button>
-  `);
+  `;
 }
 function saveSILSI(){
   const date = document.getElementById('slDate').value;
@@ -868,6 +896,90 @@ function saveSILSI(){
   saveState(); closeModal(); renderAll(); toast('SILSI logged');
 }
 function deleteSILSI(id){ state.silsi = state.silsi.filter(r=>r.id!==id); saveState(); renderAll(); }
+
+/* ---- Log treatment/event modal ---- */
+// one entry point for anything that happened — surgery and SILSI save to their own logs,
+// oral steroids/antibiotics save as medications, and the rest save to state.events
+const EVENT_TYPES = [
+  {value:'surgery', label:'Surgery / dilation'},
+  {value:'silsi', label:'SILSI'},
+  {value:'resp-infection', label:'Respiratory infection', store:'event', icon:'🫁', placeholder:'e.g. Cold, chest infection, COVID'},
+  {value:'infection', label:'Non-respiratory infection', store:'event', icon:'🦠', placeholder:'e.g. UTI, skin infection'},
+  {value:'illness', label:'Illness', store:'event', icon:'🤒', placeholder:'e.g. Gastro, migraine'},
+  {value:'oral-steroids', label:'Oral steroids', store:'treatment', placeholder:'e.g. Prednisone 40mg'},
+  {value:'antibiotics', label:'Antibiotics', store:'treatment', placeholder:'e.g. Amoxicillin'},
+  {value:'other', label:'Other treatment or event', store:'event', icon:'📌', placeholder:'What happened?'},
+];
+function eventType(value){ return EVENT_TYPES.find(t=>t.value===value); }
+function openEventModal(){
+  renderModal(`
+    <div class="modal-head"><h2>Log treatment/event</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field">
+      <label class="field-label">Type</label>
+      <select id="evType" onchange="renderEventFields(this.value)">
+        <option value="" disabled selected>Choose a treatment or event…</option>
+        ${EVENT_TYPES.map(t=>`<option value="${t.value}">${escapeHtml(t.label)}</option>`).join('')}
+      </select>
+    </div>
+    <div id="evFields"></div>
+  `);
+}
+function renderEventFields(value){
+  const t = eventType(value);
+  const el = document.getElementById('evFields');
+  if(value==='surgery'){ el.innerHTML = surgeryFieldsHtml(); return; }
+  if(value==='silsi'){ el.innerHTML = silsiFieldsHtml(); return; }
+  const today = new Date().toISOString().slice(0,10);
+  const nameLabel = t.store==='treatment' ? 'Medication and dose (optional)' : value==='other' ? 'Description' : 'Details (optional)';
+  el.innerHTML = `
+    <div class="field"><label class="field-label">${nameLabel}</label><input type="text" id="evName" placeholder="${escapeHtml(t.placeholder)}"></div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Started</label><input type="date" id="evStart" value="${today}"></div>
+      <div class="field"><label class="field-label">Ended (optional)</label><input type="date" id="evEnd"></div>
+    </div>
+    <div class="field"><label class="field-label">Notes (optional)</label><textarea id="evNotes" placeholder="${t.store==='treatment'?'Prescribed by, reason, side effects?':'Symptoms, effect on breathing, treatment?'}"></textarea></div>
+    <button class="btn btn-primary" onclick="saveEvent('${value}')">Save</button>`;
+}
+function saveEvent(value){
+  const t = eventType(value);
+  const name = document.getElementById('evName').value.trim();
+  const start = document.getElementById('evStart').value;
+  const end = document.getElementById('evEnd').value;
+  const notes = document.getElementById('evNotes').value.trim();
+  if(!start){ toast('Add a start date'); return; }
+  if(value==='other' && !name){ toast('Add a description'); return; }
+  if(t.store==='treatment'){
+    state.treatments.push({id:uid(), name: name ? `${name} (${t.label.toLowerCase()})` : t.label, kind:'medication', category:value, start, end, notes});
+    state.treatments.sort((a,b)=>new Date(b.start)-new Date(a.start));
+  }else{
+    state.events.push({id:uid(), type:value, name, start, end, notes});
+    state.events.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  }
+  saveState(); closeModal(); renderAll(); toast(`${t.label} logged`);
+}
+function deleteEvent(id){ state.events = state.events.filter(r=>r.id!==id); saveState(); renderAll(); }
+function renderEventsTab(){
+  const listEl = document.getElementById('eventList');
+  if(!state.events.length){
+    listEl.innerHTML = `<div class="empty"><span class="eicon">🤒</span>No illnesses or events logged yet.</div>`;
+    return;
+  }
+  listEl.innerHTML = [...state.events].reverse().map(e=>{
+    const t = eventType(e.type) || {label:'Event', icon:'📌'};
+    const title = e.type==='other' ? e.name : t.label;
+    const details = e.type==='other' ? '' : e.name;
+    return `
+      <div class="list-item">
+        <div class="li-main">
+          <div class="li-date">${fmtDate(e.start+'T00:00')}${e.end?' → '+fmtDate(e.end+'T00:00'):' → ongoing'}</div>
+          <div class="li-title">${t.icon} ${escapeHtml(title)}</div>
+          ${details?`<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${escapeHtml(details)}</div>`:''}
+          ${e.notes?`<div class="li-notes">${escapeHtml(e.notes)}</div>`:''}
+        </div>
+        <button class="li-del" onclick="deleteEvent('${e.id}')" aria-label="Delete">✕</button>
+      </div>`;
+  }).join('');
+}
 
 /* ---- Treatment modal ---- */
 function openTreatmentModal(){
@@ -1357,7 +1469,10 @@ function pctTable(rows){
 /* ============ CHARTS (lightweight inline SVG) ============ */
 function buildLineChart(svgEl, series, opts={}){
   // series: [{points:[{x:Date,y:number}], color, markers:bool}]
-  const W=340,H=160,padL=34,padR=10,padT=14,padB=22;
+  const W=340,H=160,padL=34,padR=10,padB=22;
+  const markerGroups = opts.markerGroups || (opts.markers ? [{dates:opts.markers, color:'#2E6FB8'}] : []);
+  // extra headroom for the marker date labels (two staggered rows) when there are markers
+  const padT = markerGroups.some(g=>g.dates.length) ? 30 : 14;
   svgEl.innerHTML='';
   svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
   const allPts = series.flatMap(s=>s.points);
@@ -1395,24 +1510,36 @@ function buildLineChart(svgEl, series, opts={}){
   if(gridYs){
     gridYs.forEach(v=>{
       const gy = sy(v);
-      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#E3E8E5" stroke-width="1"/>`;
+      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#B9C4BF" stroke-width="1"/>`;
     });
   }else{
     for(let i=0;i<=3;i++){
       const gy = padT + i*(H-padT-padB)/3;
-      svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#E3E8E5" stroke-width="1"/>`;
+      svg += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#B9C4BF" stroke-width="1"/>`;
     }
   }
   // event markers (surgery dates, SILSI dates, ...) — each group is {dates:[Date], color}.
   // opts.markers stays as shorthand for a single blue "surgery" group for backward compatibility.
-  const markerGroups = opts.markerGroups || (opts.markers ? [{dates:opts.markers, color:'#2E6FB8'}] : []);
+  // each marker gets a short date label above the plot; labels that would collide with the
+  // previous one drop to a second row
+  const markerLabels = [];
   markerGroups.forEach(group=>{
     group.dates.forEach(m=>{
       const mx = sx(m.getTime());
       if(mx>=padL && mx<=W-padR){
         svg += `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${H-padB}" stroke="${group.color}" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+        markerLabels.push({x:mx, color:group.color, text:m.toLocaleDateString(undefined,{month:'short',day:'numeric'})});
       }
     });
+  });
+  markerLabels.sort((a,b)=>a.x-b.x);
+  const rowEnds = [-Infinity,-Infinity];
+  markerLabels.forEach(l=>{
+    const half = 14;
+    const lx = Math.max(padL+half, Math.min(W-padR-half, l.x));
+    const row = lx-half > rowEnds[0]+2 ? 0 : 1;
+    rowEnds[row] = lx+half;
+    svg += `<text x="${lx.toFixed(1)}" y="${row?padT-4:padT-14}" font-size="8" font-weight="600" fill="${l.color}" font-family="IBM Plex Sans" text-anchor="middle">${l.text}</text>`;
   });
   // optional threshold reference line(s) — legacy single 'threshold' (e.g. low-oxygen cutoff),
   // or 'thresholds':[{value,color,label}] (ascending by value) for multi-tier lines like PEF drop %
@@ -1441,7 +1568,10 @@ function buildLineChart(svgEl, series, opts={}){
   });
   // y-axis labels — one per gridline when yStep is set, otherwise just top/bottom
   if(gridYs){
-    gridYs.forEach(v=>{
+    // with a wide range, label only every nth gridline so the labels don't overlap
+    const labelEvery = Math.ceil(gridYs.length/7);
+    gridYs.forEach((v,i)=>{
+      if(i % labelEvery) return;
       svg += `<text x="4" y="${sy(v).toFixed(1)}" font-size="9" fill="#8B9A9D" font-family="IBM Plex Sans">${Math.round(v)}</text>`;
     });
   }else{
@@ -1465,11 +1595,19 @@ function renderAll(){
   renderSurgeryTab();
   renderSILSITab();
   renderTreatmentTab();
+  renderEventsTab();
   renderAllergyTab();
   renderDocumentsTab();
   renderCareTeamTab();
 }
 
+// dashed date markers shown on the PEF, % of personal best and SpO₂ graphs
+function eventMarkerGroups(){
+  return [
+    {dates:state.surgeries.map(s=>new Date(s.date)), color:'#2E6FB8'},
+    {dates:state.silsi.map(s=>new Date(s.date)), color:'#7B61B3'},
+  ];
+}
 function isSurgeryDay(iso){
   const d = new Date(iso);
   return state.surgeries.some(s=>{
@@ -1511,19 +1649,21 @@ function pefZoneLegendHtml(){
   return PEF_ZONES.map(z=>`<span><span class="legend-dot" style="background:${z.color};"></span>${z.label}</span>`).join('');
 }
 
+let todayIntroOpen = false; // UI-only: remembers the "How to use this app" drop-down state across re-renders
 function renderTodayIntro(){
   const el = document.getElementById('todayIntro');
   el.innerHTML = `
-    <div class="card" style="background:var(--primary-soft);border:1px solid #BFDAD6;">
-      <h2 style="margin-bottom:10px;">How to use this app</h2>
-      <div class="stack" style="gap:10px;margin-bottom:14px;">
+    <details class="card intro-details" style="background:var(--primary-soft);border:1px solid #BFDAD6;" ${todayIntroOpen?'open':''} ontoggle="todayIntroOpen=this.open">
+      <summary><h2>How to use this app</h2><span class="intro-chevron">▾</span></summary>
+      <div class="stack" style="gap:10px;margin:10px 0 14px;">
         <p style="font-size:13.5px;line-height:1.5;"><strong>Home</strong> — log peak expiratory flow (PEF) readings and see your trend, your % of personal best (color-coded by how far each reading drops below your personal best, once you've added a personal best in Settings), and your full reading history.</p>
-        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, allergies, SpO₂, and symptoms.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Log treatment/event</strong> (Home) — record a surgery/dilation, SILSI, infection, illness, oral steroids, antibiotics, or anything else in one place.</p>
+        <p style="font-size:13.5px;line-height:1.5;"><strong>Medical</strong> — log surgeries, SILSI, medications/diet/therapy, illness &amp; events, allergies, SpO₂, and symptoms.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Records</strong> — documents and your care team's details for quick reference at appointments or in an emergency.</p>
         <p style="font-size:13.5px;line-height:1.5;"><strong>Settings</strong> (top right) — set your personal best peak expiratory flow (PEF), and export or delete your data.</p>
       </div>
       <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Everything you log stays on this device only. This app is a personal tracking tool, not a medical device — always follow your care team's guidance.</p>
-    </div>`;
+    </details>`;
 }
 // generic dismissible "how this page works" intro card, reused across tabs
 function renderTabIntro(elId, title, bodyHtml){
@@ -1580,9 +1720,7 @@ function renderToday(){
   const max = maxPF || (state.peakFlow.length ? Math.max(...state.peakFlow.map(r=>r.value)) : null);
   document.getElementById('todayLatestPF').innerHTML = latest ? `${latest.value}<span class="stat-unit">L/min</span>` : '—';
   document.getElementById('todayMaxPF').innerHTML = max ? `${max}<span class="stat-unit">L/min</span>` : '—';
-  const todayPfMarkers = state.surgeries.map(s=>new Date(s.date));
-  const todaySilsiMarkers = state.silsi.map(s=>new Date(s.date));
-  const todayMarkerGroups = [{dates:todayPfMarkers, color:'#2E6FB8'}, {dates:todaySilsiMarkers, color:'#7B61B3'}];
+  const todayMarkerGroups = eventMarkerGroups();
 
   document.getElementById('todayPfViewToggle').innerHTML = chartViewToggleHtml('pf');
   const pfView = state.settings.chartView.pf || 'graph';
@@ -1591,7 +1729,10 @@ function renderToday(){
   document.getElementById('todayPfZoneLegend').innerHTML = maxPF ? pefZoneLegendHtml() : '';
   if(pfView==='graph'){
     const zoneOpts = maxPF ? {bands:pefZoneBands(maxPF/100), pointColor:p=>pefZone(Math.round((p.y/maxPF)*100)).color} : {};
-    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups, ...zoneOpts});
+    // y-axis snapped out to whole multiples of 20 L/min so the gridlines land on round numbers
+    const pfVals = state.peakFlow.map(r=>r.value);
+    const pfRange = pfVals.length ? {minY:Math.floor(Math.min(...pfVals)/20)*20, maxY:Math.ceil(Math.max(...pfVals)/20)*20} : {};
+    buildLineChart(document.getElementById('todayPfChart'), [{points:state.peakFlow.map(r=>({x:new Date(r.date), y:r.value})),color:'#0F6E68'}], {markerGroups:todayMarkerGroups, yStep:20, ...pfRange, ...zoneOpts});
   }else{
     document.getElementById('todayPfTableWrap').innerHTML = simpleTable(['Date','PEF (L/min)','Surgery','SILSI'],
       [...state.peakFlow].reverse().map(r=>[fmtDateTime(r.date), r.value, isSurgeryDay(r.date)?'🏥 Yes':'—', isSILSIDay(r.date)?'💉 Yes':'—']));
@@ -1631,6 +1772,7 @@ function renderToday(){
     ...state.surgeries.map(r=>({date:r.date, text:`Surgery: ${r.type}`})),
     ...state.silsi.map(r=>({date:r.date, text:`SILSI logged`})),
     ...state.treatments.map(r=>({date:r.start+'T00:00', text:`${r.kind==='medication'?'Started medication':'Started diet'}: ${r.name}`})),
+    ...state.events.map(r=>({date:r.start+'T00:00', text:`${(eventType(r.type)||{label:'Event'}).label}${r.name?': '+r.name:''}`})),
   ].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const upEl = document.getElementById('upcomingCard');
   if(combined.length){
@@ -1697,7 +1839,7 @@ function renderOxygenTab(){
   document.getElementById('oxLatest').style.color = (latest!==null && latest<92) ? 'var(--sev4)' : 'var(--ink)';
   document.getElementById('oxLow').innerHTML = low!==null ? `${low}<span class="stat-unit">%</span>` : '—';
 
-  const markerGroups = [{dates:state.surgeries.map(s=>new Date(s.date)), color:'#2E6FB8'}, {dates:state.silsi.map(s=>new Date(s.date)), color:'#7B61B3'}];
+  const markerGroups = eventMarkerGroups();
   document.getElementById('oxViewToggle').innerHTML = chartViewToggleHtml('oxygen');
   const oxView = state.settings.chartView.oxygen || 'graph';
   document.getElementById('oxChartWrap').style.display = oxView==='graph' ? 'block':'none';
@@ -1949,6 +2091,8 @@ function exportDataCSV(){
       state.silsi.map(s=>[fmtDate(s.date), s.notes||''])),
     csvSection('Treatments', ['Started','Ended','Name','Kind','Notes'],
       state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||''])),
+    csvSection('Illness & events', ['Started','Ended','Type','Details','Notes'],
+      state.events.map(e=>[fmtDate(e.start+'T00:00'), e.end?fmtDate(e.end+'T00:00'):'', (eventType(e.type)||{label:'Event'}).label, e.name||'', e.notes||''])),
     csvSection('Allergies', ['Allergen','Severity','Reaction','Notes'],
       state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))
   ];
@@ -2001,6 +2145,7 @@ function exportDataPDF(){
     ${page('Surgeries', ['Date','Procedure','Location','Notes'], state.surgeries.map(s=>[fmtDate(s.date), s.type, formatSurgeryLocation(s.location), s.notes||'']))}
     ${page('SILSI', ['Date','Notes'], state.silsi.map(s=>[fmtDate(s.date), s.notes||'']))}
     ${page('Treatments', ['Started','Ended','Name','Kind','Notes'], state.treatments.map(t=>[t.start?fmtDate(t.start+'T00:00'):'', t.end?fmtDate(t.end+'T00:00'):'', t.name, t.kind, t.notes||'']))}
+    ${page('Illness & events', ['Started','Ended','Type','Details','Notes'], state.events.map(e=>[fmtDate(e.start+'T00:00'), e.end?fmtDate(e.end+'T00:00'):'', (eventType(e.type)||{label:'Event'}).label, e.name||'', e.notes||'']))}
     ${page('Allergies', ['Allergen','Severity','Reaction','Notes'], state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))}
   </body></html>`;
 
@@ -2013,7 +2158,7 @@ function exportDataPDF(){
 }
 function clearData(){
   state = {
-    peakFlow:[], oxygen:[], symptoms:[], surgeries:[], silsi:[], treatments:[], allergies:[], documents:[],
+    peakFlow:[], oxygen:[], symptoms:[], surgeries:[], silsi:[], treatments:[], events:[], allergies:[], documents:[],
     careInfo: defaultCareInfo(), settings: defaultSettings()
   };
   saveState(); closeModal(); renderAll(); toast('All data cleared');
