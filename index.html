@@ -2209,6 +2209,20 @@ function openSettings(){
         </label>`).join('')}
     </div>
 
+    <h2 style="margin-bottom:4px;">Backup &amp; restore</h2>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">Your data lives only in this browser. Keep a backup file on your computer so nothing is lost, and to move your data to another device.</p>
+    <div class="stack" style="margin-bottom:14px;">
+      <button class="btn btn-outline" onclick="downloadBackup()">⬇️ Download backup</button>
+      <button class="btn btn-outline" onclick="chooseRestoreFile()">⬆️ Restore from backup</button>
+    </div>
+    <h3 style="margin-bottom:6px;color:var(--ink);font-weight:600;">Automatic backup to your computer</h3>
+    <div id="autoBackupSettings" style="margin-bottom:18px;">${autoBackupSettingsHtml()}</div>
+
+    <h2 style="margin-bottom:4px;">Import</h2>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">Bring in PEF or SpO₂ readings from another app's CSV export — you'll match the columns before anything is added.</p>
+    <button class="btn btn-outline" style="margin-bottom:18px;" onclick="chooseCSVFile()">📄 Import from CSV</button>
+
+    <h2 style="margin-bottom:8px;">Export</h2>
     <div class="stack">
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
@@ -2376,5 +2390,6 @@ function clearData(){
 
 loadState();
 </script>
+<script src="backup.js"></script>
 </body>
 </html>
