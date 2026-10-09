@@ -1,0 +1,15 @@
+{
+  "name": "Airway — Stenosis Tracker",
+  "short_name": "Airway",
+  "description": "Personal tracker for airway stenosis: peak flow, SpO2, symptoms, surgeries and treatments.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EAF3FB",
+  "theme_color": "#0F6E68",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

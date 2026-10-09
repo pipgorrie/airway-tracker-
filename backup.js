@@ -33,6 +33,7 @@ function downloadFile(name, text, type){
 async function downloadBackup(){
   const backup = await buildBackup();
   downloadFile(backupFileName(), JSON.stringify(backup), 'application/json');
+  markBackedUp();
   toast('Backup downloaded');
 }
 
@@ -155,6 +156,7 @@ async function writeAutoBackup(){
     await w.write(autoBackupIsCSV() ? '\ufeff'+buildDataCSV() : JSON.stringify(await buildBackup()));
     await w.close();
     state.settings.lastAutoBackup = new Date().toISOString();
+    if(!autoBackupIsCSV()) markBackedUp(); // a CSV can't be restored, so it doesn't count as a backup
   }catch(e){
     console.error('auto backup failed', e);
     autoBackupStatus = 'error';
@@ -364,6 +366,93 @@ function runCSVImport(){
   csvImport = null;
 }
 
+/* ============ KEEPING DATA SAFE ON THIS DEVICE ============ */
+// per-device notes, kept outside the synced app state
+const LOCAL_KEYS = {lastBackup:'airway-tracker:lastBackupAt', snooze:'airway-tracker:backupSnoozeUntil', installDismissed:'airway-tracker:installHintDismissed'};
+function localGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function localSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function markBackedUp(){ localSet(LOCAL_KEYS.lastBackup, new Date().toISOString()); renderSafetyBanners(); }
+
+// offline support + "add to home screen"
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(e=>console.warn('service worker not registered', e));
+}
+// ask the browser not to clear this site's storage when space runs low
+let storagePersisted = null;
+if(navigator.storage && navigator.storage.persist){
+  navigator.storage.persisted().then(p => p ? p : navigator.storage.persist()).then(p => { storagePersisted = p; });
+}
+
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstallPrompt = e; renderSafetyBanners(); });
+window.addEventListener('appinstalled', () => { deferredInstallPrompt = null; renderSafetyBanners(); toast('App installed'); });
+async function installApp(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  renderSafetyBanners();
+}
+function dismissInstallHint(){ localSet(LOCAL_KEYS.installDismissed, '1'); renderSafetyBanners(); }
+function snoozeBackupReminder(){ localSet(LOCAL_KEYS.snooze, String(Date.now() + 3*86400000)); renderSafetyBanners(); }
+
+function dataCount(){
+  return state.peakFlow.length + state.oxygen.length + state.symptoms.length + state.surgeries.length
+    + state.silsi.length + state.treatments.length + (state.events||[]).length + state.documents.length;
+}
+function daysSince(iso){ return iso ? Math.floor((Date.now()-new Date(iso).getTime())/86400000) : null; }
+
+// Home banners: install the app (iPhone Safari wipes un-installed sites' data after 7 days unused),
+// and a reminder when there's no recent backup (or Drive sync)
+function renderSafetyBanners(){
+  const host = document.getElementById('todayBanners');
+  if(!host) return;
+  let el = document.getElementById('safetyBanners');
+  if(!el){ el = document.createElement('div'); el.id = 'safetyBanners'; host.parentNode.insertBefore(el, host); }
+  const out = [];
+  if(!isStandalone() && !localGet(LOCAL_KEYS.installDismissed)){
+    if(isIOS){
+      out.push(`
+      <div class="banner reminder" style="margin-bottom:12px;">
+        <div class="banner-title">📲 Add Airway to your Home Screen</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:8px;">On iPhone and iPad, Safari can erase a website's saved data if it isn't opened for 7 days. Installing the app keeps your data safe. Tap <strong>Share</strong> <span aria-hidden="true">⬆︎</span> then <strong>Add to Home Screen</strong>, and open Airway from there.</div>
+        <button class="link" onclick="dismissInstallHint()">I've done this</button>
+      </div>`);
+    }else if(deferredInstallPrompt){
+      out.push(`
+      <div class="banner reminder" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
+        <div><div class="banner-title">📲 Install Airway</div><div style="font-size:12.5px;color:var(--ink-soft);">Opens like an app, works offline, and keeps your data safer.</div></div>
+        <div style="display:flex;gap:8px;"><button class="btn btn-primary btn-sm" onclick="installApp()">Install</button><button class="btn btn-ghost btn-sm" onclick="dismissInstallHint()">Not now</button></div>
+      </div>`);
+    }
+  }
+  const last = localGet(LOCAL_KEYS.lastBackup);
+  const lastSync = typeof driveLastSyncAt==='function' ? driveLastSyncAt() : null;
+  const newest = [last, lastSync].filter(Boolean).sort().pop() || null;
+  const age = daysSince(newest);
+  const snoozed = Number(localGet(LOCAL_KEYS.snooze)||0) > Date.now();
+  if(dataCount()>=5 && !snoozed && (age===null || age>=14)){
+    out.push(`
+      <div class="banner recovery" style="margin-bottom:12px;">
+        <div class="banner-title">💾 ${age===null ? "You haven't backed up yet" : `Last backup was ${age} days ago`}</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:8px;">Your data is only stored in this browser. Keep a copy so nothing is lost.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="downloadBackup()">Back up now</button><button class="btn btn-ghost btn-sm" onclick="snoozeBackupReminder()">Remind me later</button></div>
+      </div>`);
+  }
+  el.innerHTML = out.join('');
+}
+function safetySettingsHtml(){
+  const last = localGet(LOCAL_KEYS.lastBackup);
+  const rows = [
+    ['Installed as an app', isStandalone() ? '✅ Yes' : (isIOS ? '⚠️ No — use Share → Add to Home Screen' : 'No')],
+    ['Protected from browser clean-up', storagePersisted===true ? '✅ Yes' : storagePersisted===false ? 'Not yet — installing the app helps' : '—'],
+    ['Last full backup on this device', last ? new Date(last).toLocaleString() : 'Never'],
+  ];
+  return `<div style="font-size:13px;margin-bottom:14px;">${rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);"><span style="color:var(--ink-soft);">${k}</span><span style="text-align:right;">${escapeHtml(v)}</span></div>`).join('')}</div>`;
+}
+
 /* ============ HOOKS ============ */
 // every save also refreshes the automatic backup file
 const _saveStateOriginal = saveState;
@@ -371,4 +460,11 @@ saveState = async function(){
   await _saveStateOriginal();
   scheduleAutoBackup();
 };
+// Home banners refresh whenever the app re-renders
+const _renderAllOriginal = renderAll;
+renderAll = function(){
+  _renderAllOriginal();
+  if(stateLoaded) renderSafetyBanners();
+};
 initAutoBackup();
+if(stateLoaded) renderSafetyBanners();

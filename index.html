@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Airway — Stenosis Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0F6E68">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Airway">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AB%81%3C/text%3E%3C/svg%3E">
@@ -2213,8 +2220,11 @@ function openSettings(){
         </label>`).join('')}
     </div>
 
+    ${typeof driveSettingsHtml==='function' ? driveSettingsHtml() : ''}
+
     <h2 style="margin-bottom:4px;">Backup &amp; restore</h2>
     <p style="font-size:12.5px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5;">Your data lives only in this browser. Keep a backup file on your computer so nothing is lost, and to move your data to another device.</p>
+    ${safetySettingsHtml()}
     <div class="stack" style="margin-bottom:14px;">
       <button class="btn btn-outline" onclick="downloadBackup()">⬇️ Download backup</button>
       <button class="btn btn-outline" onclick="chooseRestoreFile()">⬆️ Restore from backup</button>
@@ -2230,7 +2240,7 @@ function openSettings(){
     <div class="stack">
       <button class="btn btn-outline" onclick="exportDataCSV()">Export my data (Excel / .csv)</button>
       <button class="btn btn-outline" onclick="exportDataPDF()">Export my data (PDF)</button>
-      <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.')) clearData();">Delete all data</button>
+      <button class="btn btn-outline" onclick="if(confirm('Delete all data on this device? This cannot be undone.'+(typeof driveCfg==='function'&&driveCfg()?' Sync will be turned off on this device first, so your copy in Google Drive is kept.':''))) clearData();">Delete all data</button>
     </div>
     <div class="disclaimer" style="padding-top:18px;">
       Airway is a personal tracking tool, not a medical device. It doesn't diagnose or treat any condition.
@@ -2399,5 +2409,6 @@ function clearData(){
 loadState();
 </script>
 <script src="backup.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>
