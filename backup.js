@@ -115,9 +115,14 @@ async function initAutoBackup(){
 }
 async function chooseAutoBackupFile(){
   try{
+    // CSV (opens in Excel/Numbers/Sheets) is offered first; a .json file keeps a full,
+    // restorable backup instead. The format follows the extension of the file picked.
     autoBackupHandle = await window.showSaveFilePicker({
-      suggestedName:'airway-tracker-backup.json', startIn:'desktop',
-      types:[{description:'Airway Tracker backup', accept:{'application/json':['.json']}}],
+      suggestedName:'airway-tracker-data.csv', startIn:'desktop',
+      types:[
+        {description:'CSV spreadsheet (opens in Excel)', accept:{'text/csv':['.csv']}},
+        {description:'Full backup (can be restored)', accept:{'application/json':['.json']}},
+      ],
     });
   }catch(e){ return; } // cancelled
   await idbHandleStore('readwrite', s=>s.put(autoBackupHandle, 'autoBackup'));
@@ -142,11 +147,12 @@ async function stopAutoBackup(){
   refreshAutoBackupUI();
   toast('Automatic backup off');
 }
+function autoBackupIsCSV(){ return !!autoBackupHandle && /\.csv$/i.test(autoBackupHandle.name); }
 async function writeAutoBackup(){
   if(!autoBackupHandle || autoBackupStatus!=='on') return;
   try{
     const w = await autoBackupHandle.createWritable();
-    await w.write(JSON.stringify(await buildBackup()));
+    await w.write(autoBackupIsCSV() ? '\ufeff'+buildDataCSV() : JSON.stringify(await buildBackup()));
     await w.close();
     state.settings.lastAutoBackup = new Date().toISOString();
   }catch(e){
@@ -168,13 +174,13 @@ function autoBackupSettingsHtml(){
   const name = autoBackupHandle ? escapeHtml(autoBackupHandle.name) : '';
   const last = state.settings.lastAutoBackup ? new Date(state.settings.lastAutoBackup).toLocaleString() : null;
   if(autoBackupStatus==='on') return `
-    <p style="font-size:13px;line-height:1.5;margin-bottom:8px;">✅ Saving automatically to <strong>${name}</strong> after every change.${last?`<br><span style="color:var(--ink-faint);font-size:12px;">Last saved ${escapeHtml(last)}</span>`:''}</p>
+    <p style="font-size:13px;line-height:1.5;margin-bottom:8px;">✅ Saving automatically to <strong>${name}</strong> after every change.${autoBackupIsCSV()?`<br><span style="color:var(--ink-faint);font-size:12px;">CSV opens in Excel but can't be restored into the app — use Download backup now and then for a full copy.</span>`:''}${last?`<br><span style="color:var(--ink-faint);font-size:12px;">Last saved ${escapeHtml(last)}</span>`:''}</p>
     <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="chooseAutoBackupFile()">Change file</button><button class="btn btn-outline btn-sm" onclick="stopAutoBackup()">Turn off</button></div>`;
   if(autoBackupStatus==='paused' || autoBackupStatus==='error') return `
     <p style="font-size:13px;line-height:1.5;margin-bottom:8px;">⏸ Automatic backup to <strong>${name}</strong> is paused — your browser needs permission again${autoBackupStatus==='error'?' (the last save failed)':''}.</p>
     <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="resumeAutoBackup()">Resume</button><button class="btn btn-outline btn-sm" onclick="stopAutoBackup()">Turn off</button></div>`;
   return `
-    <p style="font-size:12.5px;color:var(--ink-faint);line-height:1.5;margin-bottom:8px;">Pick a file (e.g. on your Desktop) and the app will keep it up to date after every change.</p>
+    <p style="font-size:12.5px;color:var(--ink-faint);line-height:1.5;margin-bottom:8px;">Pick a file (e.g. on your Desktop) and the app will keep it up to date after every change. Choose <strong>CSV</strong> to open it in Excel, or <strong>Full backup (.json)</strong> to be able to restore from it.</p>
     <button class="btn btn-outline" onclick="chooseAutoBackupFile()">Choose backup file…</button>`;
 }
 function refreshAutoBackupUI(){

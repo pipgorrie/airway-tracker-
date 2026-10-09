@@ -6,6 +6,7 @@
 <title>Airway — Stenosis Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AB%81%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#EAF3FB;
@@ -237,6 +238,9 @@
 
   .segmented{display:flex;background:var(--surface-alt);border-radius:999px;padding:3px;margin-bottom:14px;}
   .segmented button{flex:1;border:none;background:none;padding:8px 0;border-radius:999px;font-size:13px;font-weight:600;color:var(--ink-soft);}
+  /* Medical has too many sections for one row on a phone — let them wrap */
+  #view-surgery .segmented{flex-wrap:wrap;border-radius:18px;gap:2px;}
+  #view-surgery .segmented button{flex:1 1 auto;padding:8px 12px;}
   .segmented button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 
   .modal-backdrop{
@@ -2282,7 +2286,8 @@ function csvSection(title, headers, rows){
   rows.forEach(r=>lines.push(r.map(csvCell).join(',')));
   return lines.join('\n');
 }
-function exportDataCSV(){
+// the CSV export text — also used by automatic backup when the chosen file is a .csv
+function buildDataCSV(){
   const maxPF = state.settings.maxPeakFlow;
   const sections = [
     csvSection('PEF', ['Date','Value (L/min)','Note'],
@@ -2304,7 +2309,10 @@ function exportDataCSV(){
     csvSection('Allergies', ['Allergen','Severity','Reaction','Notes'],
       state.allergies.map(a=>[a.allergen, a.severity||'', a.reaction||'', a.notes||'']))
   ];
-  const csv = sections.join('\n\n');
+  return sections.join('\n\n');
+}
+function exportDataCSV(){
+  const csv = buildDataCSV();
   const blob = new Blob(['﻿'+csv], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
